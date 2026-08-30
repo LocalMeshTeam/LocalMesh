@@ -8,10 +8,25 @@ pub fn initialize(app_data_dir: &Path) -> Result<(), String> {
     fs::create_dir_all(app_data_dir)
         .map_err(|error| format!("failed to create database directory: {error}"))?;
 
+    let connection = open(app_data_dir)?;
+
+    drop(connection);
+    Ok(())
+}
+
+pub fn open(app_data_dir: &Path) -> Result<Connection, String> {
+    fs::create_dir_all(app_data_dir)
+        .map_err(|error| format!("failed to create database directory: {error}"))?;
+
     let database_path = app_data_dir.join(DATABASE_FILE_NAME);
     let connection = Connection::open(&database_path)
         .map_err(|error| format!("failed to open SQLite database: {error}"))?;
 
+    run_migrations(&connection)?;
+    Ok(connection)
+}
+
+pub fn run_migrations(connection: &Connection) -> Result<(), String> {
     connection
         .execute_batch(
             "

@@ -1,10 +1,9 @@
-use std::{
-    fs,
-    path::Path,
-    time::{SystemTime, UNIX_EPOCH},
-};
+use std::time::{SystemTime, UNIX_EPOCH};
 
+use rusqlite::Connection;
 use uuid::Uuid;
+
+use crate::database::repository::DeviceIdentityRepository;
 
 use super::model::DeviceIdentity;
 
@@ -27,29 +26,16 @@ impl IdentityService {
     }
 
     pub fn load_or_create(
-        file_path: &Path,
+        connection: &Connection,
         device_name: String,
         display_name: String,
     ) -> Result<DeviceIdentity, String> {
-        if file_path.exists() {
-            let contents = fs::read_to_string(file_path)
-                .map_err(|error| format!("failed to read device identity: {error}"))?;
-
-            return serde_json::from_str(&contents)
-                .map_err(|error| format!("failed to parse device identity: {error}"));
+        if let Some(identity) = DeviceIdentityRepository::find(connection)? {
+            return Ok(identity);
         }
 
         let identity = Self::create(device_name, display_name);
-        let contents = serde_json::to_string_pretty(&identity)
-            .map_err(|error| format!("failed to serialize device identity: {error}"))?;
-
-        if let Some(parent) = file_path.parent() {
-            fs::create_dir_all(parent)
-                .map_err(|error| format!("failed to create identity directory: {error}"))?;
-        }
-
-        fs::write(file_path, contents)
-            .map_err(|error| format!("failed to save device identity: {error}"))?;
+        DeviceIdentityRepository::save(connection, &identity)?;
 
         Ok(identity)
     }
@@ -71,18 +57,19 @@ mod tests {
 
     #[test]
     fn load_or_create_reuses_the_saved_identity() {
-        let test_directory = std::env::temp_dir().join(format!("localmesh-{}", Uuid::new_v4()));
-        let identity_path = test_directory.join("device_identity.json");
+        let connection = rusqlite::Connection::open_in_memory().expect("database should open");
+        crate::database::connection::run_migrations(&connection)
+            .expect("database migration should succeed");
 
         let first_identity = IdentityService::load_or_create(
-            &identity_path,
+            &connection,
             "TEST-PC".to_string(),
             "Test User".to_string(),
         )
         .expect("first identity should be created");
 
         let loaded_identity = IdentityService::load_or_create(
-            &identity_path,
+            &connection,
             "A-DIFFERENT-NAME".to_string(),
             "A Different User".to_string(),
         )
@@ -92,25 +79,5 @@ mod tests {
         assert_eq!(first_identity.device_name, loaded_identity.device_name);
         assert_eq!(first_identity.display_name, loaded_identity.display_name);
         assert_eq!(first_identity.created_at, loaded_identity.created_at);
-
-        std::fs::remove_dir_all(test_directory).expect("test directory should be removed");
-    }
-
-    #[test]
-    fn invalid_saved_identity_returns_an_error() {
-        let test_directory = std::env::temp_dir().join(format!("localmesh-{}", Uuid::new_v4()));
-        let identity_path = test_directory.join("device_identity.json");
-
-        std::fs::create_dir_all(&test_directory).expect("test directory should be created");
-        std::fs::write(&identity_path, "not valid JSON").expect("invalid data should be written");
-
-        let result = IdentityService::load_or_create(
-            &identity_path,
-            "TEST-PC".to_string(),
-            "Test User".to_string(),
-        );
-
-        assert!(result.is_err());
-        std::fs::remove_dir_all(test_directory).expect("test directory should be removed");
     }
 }

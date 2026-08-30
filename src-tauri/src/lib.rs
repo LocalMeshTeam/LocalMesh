@@ -10,14 +10,15 @@ fn get_app_info() -> String {
 
 #[tauri::command]
 fn get_device_identity(app: tauri::AppHandle) -> Result<identity::model::DeviceIdentity, String> {
-    let identity_path = app
+    let app_data_dir = app
         .path()
         .app_data_dir()
-        .map_err(|error| format!("failed to locate app data directory: {error}"))?
-        .join("device_identity.json");
+        .map_err(|error| format!("failed to locate app data directory: {error}"))?;
+
+    let connection = database::connection::open(&app_data_dir)?;
 
     identity::service::IdentityService::load_or_create(
-        &identity_path,
+        &connection,
         "LOCALMESH-PC".to_string(),
         "LocalMesh User".to_string(),
     )
