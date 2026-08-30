@@ -9,13 +9,13 @@ fn get_app_info() -> String {
 }
 
 #[tauri::command]
-fn get_device_identity(app: tauri::AppHandle) -> Result<identity::model::DeviceIdentity, String> {
-    let app_data_dir = app
-        .path()
-        .app_data_dir()
-        .map_err(|error| format!("failed to locate app data directory: {error}"))?;
-
-    let connection = database::connection::open(&app_data_dir)?;
+fn get_device_identity(
+    state: tauri::State<'_, database::AppState>,
+) -> Result<identity::model::DeviceIdentity, String> {
+    let connection = state
+        .database
+        .lock()
+        .map_err(|error| format!("failed to lock database connection: {error}"))?;
 
     identity::service::IdentityService::load_or_create(
         &connection,
@@ -34,8 +34,10 @@ pub fn run() {
                 .app_data_dir()
                 .expect("failed to locate app data directory");
 
-            database::connection::initialize(&app_data_dir)
+            let connection = database::connection::open(&app_data_dir)
                 .expect("failed to initialize LocalMesh database");
+
+            app.manage(database::AppState::new(connection));
 
             Ok(())
         })

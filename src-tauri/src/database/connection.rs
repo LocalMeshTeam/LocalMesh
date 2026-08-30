@@ -4,16 +4,6 @@ use rusqlite::Connection;
 
 const DATABASE_FILE_NAME: &str = "localmesh.db";
 
-pub fn initialize(app_data_dir: &Path) -> Result<(), String> {
-    fs::create_dir_all(app_data_dir)
-        .map_err(|error| format!("failed to create database directory: {error}"))?;
-
-    let connection = open(app_data_dir)?;
-
-    drop(connection);
-    Ok(())
-}
-
 pub fn open(app_data_dir: &Path) -> Result<Connection, String> {
     fs::create_dir_all(app_data_dir)
         .map_err(|error| format!("failed to create database directory: {error}"))?;
