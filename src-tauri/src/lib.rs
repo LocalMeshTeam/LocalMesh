@@ -1,3 +1,4 @@
+mod database;
 mod identity;
 
 use tauri::Manager;
@@ -26,6 +27,17 @@ fn get_device_identity(app: tauri::AppHandle) -> Result<identity::model::DeviceI
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
+        .setup(|app| {
+            let app_data_dir = app
+                .path()
+                .app_data_dir()
+                .expect("failed to locate app data directory");
+
+            database::connection::initialize(&app_data_dir)
+                .expect("failed to initialize LocalMesh database");
+
+            Ok(())
+        })
         .invoke_handler(tauri::generate_handler![get_app_info, get_device_identity])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
