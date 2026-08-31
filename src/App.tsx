@@ -1,27 +1,19 @@
 import { useEffect, useState } from "react";
-import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
-
-type DeviceIdentity = {
-  device_id: string;
-  device_name: string;
-  display_name: string;
-  created_at: string;
-};
 
 function App() {
   const [identity, setIdentity] = useState<DeviceIdentity | null>(null);
   const [error, setError] = useState("");
 
   useEffect(() => {
-    if (!("__TAURI_INTERNALS__" in window)) {
+    if (!window.localmesh) {
       setError(
-        "Tauri runtime is unavailable. Start LocalMesh with `pnpm tauri dev` instead of opening the Vite URL directly.",
+        "Electron runtime is unavailable. Start LocalMesh with `bun run dev` instead of opening the Vite URL directly.",
       );
       return;
     }
 
-    invoke<DeviceIdentity>("get_device_identity")
+    window.localmesh.getDeviceIdentity()
       .then(setIdentity)
       .catch((error) => {
         console.error("Identity error:", error);

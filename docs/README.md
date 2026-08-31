@@ -6,19 +6,19 @@ This document describes the languages, tools, and concepts used in LocalMesh. It
 
 Used for the frontend. Learn types, interfaces, functions, promises, `async`/`await`, error handling, components, props, state, `useEffect`, conditional rendering, loading/error states, and service modules.
 
-Status: basic identity screen and Tauri invocation are implemented; chat and networking UI are not.
+Status: basic identity screen and Electron IPC are implemented; chat and networking UI are not.
 
-## Vite and pnpm
+## Vite and Bun
 
-Vite serves and builds the frontend. pnpm installs JavaScript dependencies and runs scripts from `package.json`.
+Vite serves and builds the frontend. Bun installs JavaScript dependencies and runs scripts from `package.json`.
 
-Learn `package.json`, lockfiles, development servers, production builds, and why `pnpm tauri dev` differs from `pnpm dev`.
+Learn `package.json`, lockfiles, development servers, production builds, and why `bun run dev` starts both Vite and Electron.
 
 Status: project setup and build workflow are complete.
 
-## Rust
+## Electron and TypeScript
 
-Used for native logic, persistence, and future networking. Learn in this order:
+The Electron main process handles desktop logic, persistence, and future networking.
 
 1. Variables, mutability, functions, expressions
 2. `String` and `&str`
@@ -37,13 +37,13 @@ Used for native logic, persistence, and future networking. Learn in this order:
 
 Status: structs, `impl`, modules, `Result`, Serde, UUIDs, borrowing, SQLite, and managed state are present. Async networking has not started.
 
-## Tauri 2
+## Electron IPC
 
-Used to package the frontend as a desktop app and bridge TypeScript to Rust.
+Used to package the frontend as a desktop app and bridge the renderer to the TypeScript main process.
 
-Learn WebView, commands, IPC, command registration, Serde serialization, `AppHandle`, managed state, events, filesystem/path APIs, and desktop/mobile differences.
+Learn BrowserWindow, IPC, context isolation, preload scripts, events, filesystem/path APIs, and desktop/mobile differences.
 
-Status: commands, IPC, startup setup, and managed state are implemented. Events and mobile behavior are not.
+Status: IPC handlers, startup setup, a context-isolated preload bridge, and database ownership are implemented.
 
 ## SQLite and SQL
 
@@ -62,11 +62,12 @@ Not implemented yet: message delivery lifecycle, file streaming, chunking, check
 ## Current checkpoint
 
 ```text
-React invokes a registered Tauri command.
-Tauri calls Rust.
-Rust uses a service and repository.
+React calls a typed preload API.
+Electron routes the request to the main process.
+The TypeScript service uses a database repository.
 The repository reads or writes SQLite.
 The result returns to React.
 ```
 
-The project is intentionally incomplete. The next learning step is exposing conversation and message repositories through Tauri IPC, followed by the LAN networking foundation.
+The project is intentionally incomplete. The next learning step is exposing conversation and message repositories through Electron IPC, followed by the LAN networking foundation.
+The desktop runtime is Electron and all application logic is TypeScript. Use Bun for package installation and scripts. The renderer communicates with the Electron main process through the context-isolated preload bridge exposed as `window.localmesh`.
