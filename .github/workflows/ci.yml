@@ -27,5 +27,8 @@ jobs:
       - name: Build renderer and Electron process
         run: bun run build
 
+      - name: Rebuild native modules for Electron
+        run: bun run rebuild:native
+
       - name: Run backend tests
         run: bun run test
