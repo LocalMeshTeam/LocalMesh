@@ -8,7 +8,7 @@ Run:
 bun run test
 ```
 
-Protocol, security, transport, and trust tests run under Bun. Database tests run with Electron's Node runtime because `better-sqlite3` is rebuilt for Electron and is not supported directly by Bun.
+`bun run test` runs all backend tests locally, including database tests with Electron's Node runtime. For GitHub Actions or environments without Electron's native SQLite build, use `bun run test:unit`; it runs the portable protocol, security, transport, discovery, and trust tests.
 
 ## Two-computer LAN test
 
