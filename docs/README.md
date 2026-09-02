@@ -18,24 +18,7 @@ Status: project setup and build workflow are complete.
 
 ## Electron and TypeScript
 
-The Electron main process handles desktop logic, persistence, and future networking.
-
-1. Variables, mutability, functions, expressions
-2. `String` and `&str`
-3. Structs and enums
-4. `impl` blocks
-5. Modules and `pub`
-6. Ownership and borrowing
-7. `Option` and `Result`
-8. Pattern matching
-9. Traits
-10. Generics and iterators
-11. Closures
-12. Async/await and Tokio
-13. Threads and channels
-14. `Mutex`, `RwLock`, and shared state
-
-Status: structs, `impl`, modules, `Result`, Serde, UUIDs, borrowing, SQLite, and managed state are present. Async networking has not started.
+The Electron main process handles desktop logic, persistence, and future networking. Learn typed modules, promises, Electron windows, context isolation, preload scripts, IPC handlers, and Node filesystem APIs.
 
 ## Electron IPC
 
@@ -49,7 +32,7 @@ Status: IPC handlers, startup setup, a context-isolated preload bridge, and data
 
 Used for local persistence. Learn databases, tables, rows, columns, primary keys, foreign keys, indexes, migrations, parameterized queries, transactions, repositories, and database error handling.
 
-Status: SQLite connection, migrations, identity storage, conversation/message schema, repositories, and tests are implemented. IPC access and complete CRUD are not.
+Status: SQLite connection, migrations, identity storage, and the conversation/message schema are implemented. Complete CRUD and IPC access are future work.
 
 ## Future networking concepts
 
@@ -69,5 +52,7 @@ The repository reads or writes SQLite.
 The result returns to React.
 ```
 
-The project is intentionally incomplete. The next learning step is exposing conversation and message repositories through Electron IPC, followed by the LAN networking foundation.
+The project is intentionally incomplete. Conversation and message operations are now available in the backend through Electron IPC. The next learning step is the LAN networking foundation; the frontend will consume these APIs later.
+
+See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the file map, runtime flow, and CI/CD explanation.
 The desktop runtime is Electron and all application logic is TypeScript. Use Bun for package installation and scripts. The renderer communicates with the Electron main process through the context-isolated preload bridge exposed as `window.localmesh`.

@@ -63,6 +63,8 @@ LocalMesh/
 
 See [`docs/README.md`](docs/README.md).
 
+For the file relationships and runtime flow, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+
 ## Current implementation status
 
 ### Completed

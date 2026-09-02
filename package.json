@@ -8,10 +8,11 @@
   "scripts": {
     "dev": "concurrently -k \"bun run dev:renderer\" \"bun run dev:electron\"",
     "dev:renderer": "vite",
-    "dev:electron": "wait-on http://localhost:1420 && bun run build:electron && electron dist-electron/main.js",
+    "dev:electron": "wait-on http://localhost:1420 && bun run build:electron && bun run rebuild:native && electron dist-electron/main.js",
     "build": "bun run build:renderer && bun run build:electron",
     "build:renderer": "tsc -p tsconfig.json && vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
+    "rebuild:native": "electron-rebuild -f -w better-sqlite3",
     "preview": "vite preview",
     "start": "electron dist-electron/main.js"
   },
@@ -21,6 +22,7 @@
     "react-dom": "^19.1.0"
   },
   "devDependencies": {
+    "@electron/rebuild": "^4.0.3",
     "@types/better-sqlite3": "^7.6.12",
     "@types/node": "^22.15.21",
     "@types/react": "^19.1.8",
