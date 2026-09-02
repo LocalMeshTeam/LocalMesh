@@ -31,7 +31,9 @@ electron/main.ts
 - `electron/preload.cts` exposes the safe, context-isolated IPC API.
 - `electron/main.ts` starts Electron, creates the window, and registers IPC handlers.
 - `electron/database.ts` owns SQLite, migrations, and device identity persistence.
-- `electron/discovery.ts` announces the local device over UDP multicast and tracks nearby LocalMesh peers in memory.
+- `electron/discovery.ts` announces the local device over UDP multicast, tracks nearby LocalMesh peers in memory, and reports network constants.
+- `electron/trust.ts` persists trusted peer public keys and exposes fingerprint-based authorization state.
+- `electron/security.ts` stores persistent signing/key-exchange keys and provides cryptographic identity helpers.
 - `vite.config.ts` serves and builds the renderer on port `1420`.
 - `tsconfig.electron.json` compiles the Electron main process and preload script.
 - `.github/workflows/ci.yml` checks dependencies and builds the project on GitHub.
@@ -46,13 +48,17 @@ Device identity uses the operating-system hostname and username when first creat
 2. Electron starts and creates a `BrowserWindow`.
 3. Electron loads the CommonJS preload output, `dist-electron/preload.cjs`.
 4. React loads `src/App.tsx`.
-5. The app can call the typed preload API for identity, conversations, and messages.
+5. The app can call the typed preload API for identity, discovered peers, conversations, messages, and trust operations.
 6. The preload bridge sends the request through Electron IPC.
 7. `electron/main.ts` validates the request boundary and calls the database service.
 8. `electron/database.ts` reads or writes SQLite.
 9. The result returns through IPC; the future frontend will render it.
 
 In parallel, `electron/discovery.ts` sends a discovery announcement every five seconds on multicast address `239.255.42.99`, port `45454`. It records remote peers and removes peers that have not announced for fifteen seconds.
+
+Message transport uses TCP port `45455`. Each message is newline-framed JSON and requires an acknowledgement within five seconds. Failed attempts are retried up to three times; the receiver's message ID deduplication makes retries safe.
+
+Each installation creates persistent Ed25519 signing and X25519 key-exchange keys under Electron's user-data directory. Transport hello packets advertise and sign the public keys, and invalid signatures are rejected. Message payloads use an X25519-derived AES-256-GCM key and Ed25519 signatures. The transport pins a device's signing key for the current session, rejects messages outside a one-minute clock window, and SQLite deduplicates message IDs. `electron/trust.ts` persists approved peer keys; the future frontend will provide the approval and revoke controls.
 
 ## Commands
 

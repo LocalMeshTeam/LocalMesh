@@ -26,3 +26,6 @@ jobs:
 
       - name: Build renderer and Electron process
         run: bun run build
+
+      - name: Run backend tests
+        run: bun run test

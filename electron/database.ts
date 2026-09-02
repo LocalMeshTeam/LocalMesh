@@ -117,6 +117,17 @@ export function createConversation(database: SQLiteDatabase, peerId: string): Co
   return conversation;
 }
 
+export function ensureConversation(database: SQLiteDatabase, conversationId: string, peerId: string, createdAt: string): Conversation {
+  conversationId = requiredText(conversationId, "conversationId", 255);
+  peerId = requiredText(peerId, "peerId", MAX_PEER_ID_LENGTH);
+  createdAt = requiredText(createdAt, "createdAt", 64);
+  const existing = database.prepare("SELECT conversation_id, peer_id, created_at, updated_at FROM conversations WHERE conversation_id = ?").get(conversationId) as Conversation | undefined;
+  if (existing) return existing;
+  database.prepare("INSERT INTO conversations (conversation_id, peer_id, created_at, updated_at) VALUES (?, ?, ?, ?)")
+    .run(conversationId, peerId, createdAt, createdAt);
+  return { conversation_id: conversationId, peer_id: peerId, created_at: createdAt, updated_at: createdAt };
+}
+
 export function listMessages(database: SQLiteDatabase, conversationId: string): Message[] {
   conversationId = requiredText(conversationId, "conversationId", 255);
   return database.prepare("SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, status FROM messages WHERE conversation_id = ? ORDER BY timestamp ASC")
@@ -137,4 +148,21 @@ export function createMessage(database: SQLiteDatabase, conversationId: string, 
     .run(message.message_id, message.conversation_id, message.sender_id, message.receiver_id, message.content, message.timestamp, message.status);
   database.prepare("UPDATE conversations SET updated_at = ? WHERE conversation_id = ?").run(message.timestamp, conversationId);
   return message;
+}
+
+export function updateMessageStatus(database: SQLiteDatabase, messageId: string, status: "pending" | "sent" | "delivered" | "failed"): void {
+  messageId = requiredText(messageId, "messageId", 255);
+  database.prepare("UPDATE messages SET status = ? WHERE message_id = ?").run(status, messageId);
+}
+
+export function saveReceivedMessage(database: SQLiteDatabase, message: Message): Message {
+  const conversation = database.prepare("SELECT conversation_id FROM conversations WHERE conversation_id = ?").get(message.conversation_id) as { conversation_id: string } | undefined;
+  if (!conversation) throw new Error("Conversation not found for received message");
+  const existing = database.prepare("SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, status FROM messages WHERE message_id = ?").get(message.message_id) as Message | undefined;
+  if (existing) return existing;
+  const receivedMessage = { ...message, status: "delivered" } as Message;
+  database.prepare("INSERT INTO messages (message_id, conversation_id, sender_id, receiver_id, content, timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(receivedMessage.message_id, receivedMessage.conversation_id, receivedMessage.sender_id, receivedMessage.receiver_id, receivedMessage.content, receivedMessage.timestamp, receivedMessage.status);
+  database.prepare("UPDATE conversations SET updated_at = ? WHERE conversation_id = ?").run(receivedMessage.timestamp, receivedMessage.conversation_id);
+  return receivedMessage;
 }

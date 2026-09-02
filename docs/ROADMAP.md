@@ -49,7 +49,7 @@ IPC handlers are registered in `electron/main.ts` and exposed by `electron/prelo
 
 ### Phase 3 — LAN peer discovery
 
-Status: basic implementation complete; real two-device testing remains.
+Status: implementation complete; real two-device testing remains.
 
 File:
 
@@ -64,15 +64,19 @@ Completed:
 - Stale peer removal after fifteen seconds.
 - Clean shutdown when Electron exits.
 
+The discovery packet includes the TCP transport port used by the next phase.
+
 ## Current phase
 
 ### Phase 4 — LAN message transport
 
-Status: next phase.
+Status: implementation complete; two-device testing remains.
+
+An automated loopback integration test now verifies encrypted delivery and acknowledgements between two transport instances.
 
 The goal is to send messages between discovered peers. The frontend will not be changed in this phase.
 
-Files to add:
+Files added:
 
 - `electron/protocol.ts` — packet formats, serialization, validation, and protocol versions.
 - `electron/transport.ts` — TCP connections, sending, receiving, retries, and timeouts.
@@ -83,7 +87,7 @@ Files to update:
 - `electron/database.ts` — update message delivery status and prevent duplicate received messages.
 - `electron/discovery.ts` — include or provide the peer connection address and transport port.
 
-Required behavior:
+Implemented:
 
 - Start a TCP listener.
 - Connect to discovered peers.
@@ -91,12 +95,21 @@ Required behavior:
 - Send message packets.
 - Receive and persist message packets.
 - Send delivery acknowledgements.
-- Handle disconnects and timeouts.
-- Retry failed messages safely.
+- Update local message status.
+- Create or reuse the matching conversation on the receiving device.
+- Ignore duplicate received message IDs.
+- Wait for acknowledgements with a five-second timeout.
+- Retry delivery up to three attempts.
+
+Remaining:
+
+- Test with two computers on the same LAN.
 
 ## Remaining phases
 
 ### Phase 5 — Security
+
+Status: complete for the backend foundation; authorization controls are exposed for the future frontend.
 
 Files:
 
@@ -104,14 +117,27 @@ Files:
 - `electron/protocol.ts`
 - `electron/transport.ts`
 - `electron/main.ts`
+- `electron/trust.ts`
 
-Work:
+Implemented:
 
-- Peer authentication.
-- Public/private key identity.
-- Key exchange.
-- Encrypted packets.
-- Replay and tampering protection.
+- Persistent Ed25519 signing key.
+- Persistent X25519 key-exchange key.
+- Public-key fingerprint generation.
+- Signing, verification, and shared-secret derivation helpers.
+- Signed public-key exchange during the transport hello handshake.
+- Rejection of unauthenticated hello packets.
+- X25519 shared-key derivation for peer sessions.
+- AES-256-GCM message payload encryption.
+- Ed25519 signatures for encrypted message packets.
+- Session key pinning for discovered device IDs.
+- Timestamp-based replay protection.
+- Persistent trusted-peer records with fingerprints.
+- Trust and revoke IPC handlers.
+
+Remaining work:
+
+- Frontend controls for reviewing and approving discovered peers.
 
 ### Phase 6 — Frontend application
 
@@ -161,6 +187,8 @@ Work:
 
 ### Phase 9 — Testing and performance
 
+Status: database, protocol, security, trust, and loopback transport coverage added; LAN validation remains.
+
 Files to add:
 
 - `electron/database.test.ts`
@@ -168,14 +196,13 @@ Files to add:
 - `electron/transport.test.ts`
 - `electron/security.test.ts`
 
+Automated tests now cover database behavior, key persistence, signatures, encryption/decryption, packet round trips, trust records, transport delivery, and malformed packet rejection.
+
 Work:
 
-- Database tests.
-- Protocol tests.
+- Two-device message delivery tests.
 - Two-device discovery tests.
-- Message delivery tests.
 - Failure and retry tests.
-- Security tests.
 - Performance benchmarks.
 
 ### Phase 10 — Electron packaging

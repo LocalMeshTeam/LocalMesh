@@ -2,7 +2,7 @@
 
 LocalMesh is a local-first, offline LAN communication platform. Its long-term goal is to support device discovery, peer-to-peer chat, file transfer, large-file transfer, screen sharing, and secure communication without depending on the Internet.
 
-The project is currently in the backend foundation stage. Electron IPC, local device identity, SQLite initialization, conversation/message APIs, and basic LAN peer discovery are implemented. Message transport, chat UI, file transfer, screen sharing, and security are not implemented yet.
+The project is currently in the backend foundation stage. Electron IPC, local device identity, SQLite initialization, conversation/message APIs, LAN peer discovery, TCP message transport, signed peer handshakes, and encrypted message payloads are implemented. Chat UI, file transfer, screen sharing, trusted-peer authorization, and complete security are not implemented yet.
 
 ## Technology
 
@@ -67,6 +67,8 @@ For the file relationships and runtime flow, see [`docs/ARCHITECTURE.md`](docs/A
 
 For the completed and remaining development phases, see [`docs/ROADMAP.md`](docs/ROADMAP.md).
 
+For backend and two-device LAN testing, see [`docs/TESTING.md`](docs/TESTING.md).
+
 ## Current implementation status
 
 ### Completed
@@ -84,7 +86,7 @@ For the completed and remaining development phases, see [`docs/ROADMAP.md`](docs
 
 ### Not completed yet
 
-- LAN message sockets and transport protocol
+- Complete LAN message delivery and retry handling
 - Conversation and chat UI
 - Peer authentication and encryption
 - File transfer

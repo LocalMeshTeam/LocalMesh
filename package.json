@@ -13,6 +13,7 @@
     "build:renderer": "tsc -p tsconfig.json && vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
+    "test": "bun test electron/discovery.test.ts electron/protocol.test.ts electron/security.test.ts electron/transport.test.ts electron/trust.test.ts && bun run build:electron && bunx electron dist-electron/database.test.js",
     "preview": "vite preview",
     "start": "electron dist-electron/main.js"
   },
