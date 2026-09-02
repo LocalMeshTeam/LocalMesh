@@ -2,6 +2,8 @@
 
 This document explains how the LocalMesh files connect and how a request moves through the application.
 
+See [`ROADMAP.md`](ROADMAP.md) for completed phases and upcoming work.
+
 ## File map
 
 ```text

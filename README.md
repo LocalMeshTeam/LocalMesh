@@ -2,7 +2,7 @@
 
 LocalMesh is a local-first, offline LAN communication platform. Its long-term goal is to support device discovery, peer-to-peer chat, file transfer, large-file transfer, screen sharing, and secure communication without depending on the Internet.
 
-The project is currently in the foundation stage. Electron IPC, local device identity, SQLite initialization, and the first conversation/message schema are implemented. LAN networking, peer discovery, chat UI, file transfer, screen sharing, and security are not implemented yet.
+The project is currently in the backend foundation stage. Electron IPC, local device identity, SQLite initialization, conversation/message APIs, and basic LAN peer discovery are implemented. Message transport, chat UI, file transfer, screen sharing, and security are not implemented yet.
 
 ## Technology
 
@@ -65,6 +65,8 @@ See [`docs/README.md`](docs/README.md).
 
 For the file relationships and runtime flow, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
 
+For the completed and remaining development phases, see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+
 ## Current implementation status
 
 ### Completed
@@ -72,20 +74,18 @@ For the file relationships and runtime flow, see [`docs/ARCHITECTURE.md`](docs/A
 - Electron + React + TypeScript project setup
 - TypeScript main process compilation
 - React-to-Electron IPC using a context-isolated preload bridge
-- `getAppInfo` and `getDeviceIdentity` IPC handlers
+- IPC handlers for app info, identity, conversations, and messages
 - UUID-based local device identity
 - Identity persistence in SQLite
 - Electron-managed database connection
 - SQLite migrations versions 1 and 2
 - Device identity, conversations, and messages tables
-- Initial database service and TypeScript checks
+- Initial database service, peer discovery, and TypeScript checks
 
 ### Not completed yet
 
-- IPC commands for conversations and messages
+- LAN message sockets and transport protocol
 - Conversation and chat UI
-- LAN sockets and transport protocol
-- Peer discovery
 - Peer authentication and encryption
 - File transfer
 - Screen sharing
