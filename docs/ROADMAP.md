@@ -141,6 +141,8 @@ Remaining work:
 
 ### Phase 6 — Frontend application
 
+Status: initial peer and chat interface implemented; refinement remains.
+
 Frontend work begins here.
 
 Files:
@@ -152,14 +154,22 @@ Files:
 
 Work:
 
-- Display discovered peers.
+- Add revoke confirmation and responsive layout.
+- Improve advanced loading, error, and delivery-state UX.
+
+Completed:
+
+- Display discovered peers, device names, IP addresses, and online state.
 - Create and select conversations.
 - Display message history.
 - Send messages through IPC.
-- Show online/offline state.
 - Show pending, delivered, and failed statuses.
+- Trust and revoke discovered peers.
+- Poll peers, conversations, and messages for updates.
 
 ### Phase 7 — File transfer
+
+Status: storage and encrypted packet routing implemented; file-selection IPC and end-to-end transfer remain.
 
 Files to add:
 
@@ -168,6 +178,7 @@ Files to add:
 
 Work:
 
+- Add transfer protocol and IPC file selection APIs.
 - File selection and metadata.
 - Chunked transfer.
 - Progress reporting.
@@ -207,14 +218,20 @@ Work:
 
 ### Phase 10 — Electron packaging
 
+Status: Windows installer configuration added; installer validation remains.
+
 Files to update:
 
 - `package.json`
 - `.github/workflows/release.yml`
 
+Completed:
+
+- Added Electron Builder configuration for a Windows NSIS installer.
+- Configured native `better-sqlite3` unpacking.
+
 Work:
 
-- Add Electron Forge or electron-builder.
 - Build Windows installers.
 - Build macOS packages.
 - Build Linux packages.
@@ -222,17 +239,17 @@ Work:
 
 ### Phase 11 — CD and releases
 
+Status: Windows release workflow added; tag-release validation remains.
+
 File:
 
 - `.github/workflows/release.yml`
 
 Work:
 
-1. Build the application on version tags.
-2. Package platform installers.
-3. Upload release artifacts.
-4. Create a GitHub Release.
-5. Add code signing and auto-updates later.
+1. Test the release workflow with a version tag.
+2. Add macOS and Linux release jobs later.
+3. Add code signing and auto-updates later.
 
 ## Supporting files
 

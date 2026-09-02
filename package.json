@@ -1,5 +1,7 @@
 {
   "name": "localmesh",
+  "description": "Offline LAN communication platform for desktop devices",
+  "author": "Diksh Jaswal",
   "private": true,
   "version": "0.1.0",
   "type": "module",
@@ -13,8 +15,9 @@
     "build:renderer": "tsc -p tsconfig.json && vite build",
     "build:electron": "tsc -p tsconfig.electron.json",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
-    "test:unit": "bun test electron/discovery.test.ts electron/protocol.test.ts electron/security.test.ts electron/transport.test.ts electron/trust.test.ts",
-    "test": "bun test electron/discovery.test.ts electron/protocol.test.ts electron/security.test.ts electron/transport.test.ts electron/trust.test.ts && bun run build:electron && bunx electron dist-electron/database.test.js",
+    "test:unit": "bun test electron/discovery.test.ts electron/file-transfer.test.ts electron/protocol.test.ts electron/security.test.ts electron/storage.test.ts electron/transport.test.ts electron/trust.test.ts",
+    "test": "bun run test:unit && bun run build:electron && bunx electron dist-electron/database.test.js",
+    "package:win": "bun run build && bun run rebuild:native && electron-builder --win nsis",
     "preview": "vite preview",
     "start": "electron dist-electron/main.js"
   },
@@ -22,6 +25,15 @@
     "better-sqlite3": "^11.10.0",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
+  },
+  "build": {
+    "appId": "com.localmesh.app",
+    "productName": "LocalMesh",
+    "directories": { "output": "release" },
+    "files": ["dist/**/*", "dist-electron/**/*", "package.json"],
+    "asarUnpack": ["node_modules/better-sqlite3/**/*"],
+    "win": { "target": "nsis" },
+    "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }
   },
   "devDependencies": {
     "@electron/rebuild": "^4.0.3",
@@ -32,6 +44,7 @@
     "@vitejs/plugin-react": "^4.6.0",
     "concurrently": "^9.1.2",
     "electron": "^36.3.2",
+    "electron-builder": "^26.15.3",
     "typescript": "~5.8.3",
     "vite": "^7.0.4",
     "wait-on": "^8.0.3"

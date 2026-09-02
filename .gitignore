@@ -11,6 +11,13 @@ node_modules
 dist
 dist-ssr
 dist-electron
+release
+coverage
+.vite
+*.tsbuildinfo
+*.db
+*.db-shm
+*.db-wal
 *.local
 
 # Editor directories and files

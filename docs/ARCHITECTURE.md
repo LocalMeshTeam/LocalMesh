@@ -26,7 +26,7 @@ electron/main.ts
 
 - `index.html` loads the React entry point.
 - `src/main.tsx` mounts the React application.
-- `src/App.tsx` renders the UI and requests device identity.
+- `src/App.tsx` renders the peer list, trust controls, conversations, and chat messages through IPC.
 - `src/electron.d.ts` types the `window.localmesh` API.
 - `electron/preload.cts` exposes the safe, context-isolated IPC API.
 - `electron/main.ts` starts Electron, creates the window, and registers IPC handlers.
