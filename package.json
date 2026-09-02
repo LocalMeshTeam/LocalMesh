@@ -17,7 +17,7 @@
     "rebuild:native": "electron-rebuild -f -w better-sqlite3",
     "test:unit": "bun test electron/discovery.test.ts electron/file-transfer.test.ts electron/protocol.test.ts electron/security.test.ts electron/storage.test.ts electron/transport.test.ts electron/trust.test.ts",
     "test": "bun run test:unit && bun run build:electron && bunx electron dist-electron/database.test.js",
-    "package:win": "bun run build && bun run rebuild:native && electron-builder --win nsis",
+    "package:win": "bun run build && bun run rebuild:native && electron-builder --win nsis --publish never",
     "preview": "vite preview",
     "start": "electron dist-electron/main.js"
   },

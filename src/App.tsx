@@ -17,6 +17,8 @@ function App() {
   const [fileStatus, setFileStatus] = useState("");
   const [fileProgress, setFileProgress] = useState<{ transfer_id: string; file_name?: string; transferred: number; total: number; status: string } | null>(null);
   const [receivedFiles, setReceivedFiles] = useState<{ transfer_id: string; file_name: string }[]>([]);
+  const [copied, setCopied] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
 
   const mergeMessages = (incoming: Message[]) => setMessages((current) => Array.from(new Map([...current, ...incoming].map((message) => [message.message_id, message])).values()).sort((left, right) => left.timestamp.localeCompare(right.timestamp)));
 
@@ -99,10 +101,14 @@ function App() {
 
   const peerLabel = (peerId: string) => peers.find((peer) => peer.device_id === peerId)?.display_name || peerId;
 
+  const refreshNow = async () => { setRefreshing(true); await Promise.all([refreshPeers(), refreshConversations(), refreshTrusted()]); setRefreshing(false); };
+  const copyDeviceId = async () => { await navigator.clipboard.writeText(identity?.device_id || ""); setCopied(true); window.setTimeout(() => setCopied(false), 1500); };
+
   if (loading || !identity) return <main className="shell"><h1>LocalMesh</h1><p>{error || "Loading device…"}</p></main>;
   return <main className="shell">
     <header className="header"><div><h1>LocalMesh</h1><p>Offline LAN Communication</p></div><div className="identity"><strong>{identity.device_name}</strong><span>{network?.addresses.join(", ") || "No LAN address"}</span><small>Discovery {network?.discovery_port ?? "—"} · Transport {network?.transport_port ?? "—"}</small></div></header>
     {error && <div className="error">{error}</div>}
+    <div className="toolbar"><div><strong>{peers.length}</strong><span> nearby {peers.length === 1 ? "device" : "devices"}</span><span className="toolbar-separator">·</span><strong>{conversations.length}</strong><span> conversations</span></div><div className="toolbar-actions"><button className="copy-button" onClick={copyDeviceId}>{copied ? "Copied" : "Copy device ID"}</button><button className="icon-button" onClick={refreshNow} disabled={refreshing}>{refreshing ? "Refreshing…" : "Refresh"}</button></div></div>
     <div className="layout">
       <aside className="sidebar">
         <section><h2>Nearby devices</h2>{peers.length === 0 && <p className="muted">No peers discovered yet.</p>}{peers.map((peer) => { const isTrusted = trusted.some((item) => item.device_id === peer.device_id); return <div className="peer" key={peer.device_id}><div><strong>{peer.display_name}</strong><small><span className="online-dot" />Online · {peer.device_name} · {peer.address}</small></div><div className="actions"><button onClick={() => openConversation(peer.device_id)}>Chat</button>{isTrusted ? <button className="secondary" onClick={() => revokePeer(peer.device_id)}>Revoke</button> : <button onClick={() => trustPeer(peer.device_id)}>Trust</button>}</div></div>; })}</section>
