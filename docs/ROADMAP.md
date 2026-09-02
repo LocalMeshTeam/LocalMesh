@@ -43,6 +43,8 @@ Completed:
 - Input validation and message length limits.
 - Duplicate conversation prevention.
 
+The device name and display name are loaded dynamically from the operating system. The device ID is a persistent generated UUID; it is not based on the IP address because IP addresses can change.
+
 IPC handlers are registered in `electron/main.ts` and exposed by `electron/preload.cts`.
 
 ### Phase 3 — LAN peer discovery

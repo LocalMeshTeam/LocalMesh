@@ -38,6 +38,8 @@ electron/main.ts
 
 The renderer cannot access Node.js or SQLite directly. It only uses the small API exposed by the preload bridge.
 
+Device identity uses the operating-system hostname and username when first created. The generated UUID is stored in SQLite and remains stable across restarts. IP addresses are discovered dynamically from network interfaces and peer packets; they are not used as permanent identity because they can change.
+
 ## Runtime flow
 
 1. Vite serves the renderer on port `1420`.

@@ -1,5 +1,6 @@
 import { createRequire } from "node:module";
 import { mkdirSync } from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import type BetterSqlite3 from "better-sqlite3";
 
@@ -65,18 +66,30 @@ export function openDatabase(userDataPath: string): SQLiteDatabase {
     CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
     INSERT OR IGNORE INTO schema_migrations (version, applied_at)
       VALUES (2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
+    INSERT OR IGNORE INTO schema_migrations (version, applied_at)
+      VALUES (3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
   `);
   return database;
 }
 
 export function loadOrCreateIdentity(database: SQLiteDatabase): DeviceIdentity {
   const existing = database.prepare("SELECT device_id, device_name, display_name, created_at FROM device_identity LIMIT 1").get() as DeviceIdentity | undefined;
-  if (existing) return existing;
+  if (existing) {
+    const deviceName = os.hostname();
+    const displayName = os.userInfo().username;
+    const hasLegacyDefaults = existing.device_name === "LOCALMESH-PC" && existing.display_name === "LocalMesh User";
+    if (hasLegacyDefaults) {
+      database.prepare("UPDATE device_identity SET device_name = ?, display_name = ? WHERE device_id = ?")
+        .run(deviceName, displayName, existing.device_id);
+      return { ...existing, device_name: deviceName, display_name: displayName };
+    }
+    return existing;
+  }
 
   const identity: DeviceIdentity = {
     device_id: crypto.randomUUID(),
-    device_name: "LOCALMESH-PC",
-    display_name: "LocalMesh User",
+    device_name: os.hostname(),
+    display_name: os.userInfo().username,
     created_at: new Date().toISOString(),
   };
   database.prepare("INSERT INTO device_identity (device_id, device_name, display_name, created_at) VALUES (?, ?, ?, ?)")

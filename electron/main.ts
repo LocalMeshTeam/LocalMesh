@@ -2,7 +2,7 @@ import { app, BrowserWindow, ipcMain } from "electron";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { createConversation, createMessage, listConversations, listMessages, loadOrCreateIdentity, openDatabase } from "./database.js";
-import { PeerDiscovery } from "./discovery.js";
+import { getLocalAddresses, PeerDiscovery } from "./discovery.js";
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const isDevelopment = !app.isPackaged;
@@ -34,6 +34,8 @@ app.whenReady().then(() => {
   try {
     const database = openDatabase(app.getPath("userData"));
     const identity = loadOrCreateIdentity(database);
+    console.log(`LocalMesh device: ${identity.device_name} (${identity.display_name})`);
+    console.log(`Local IPv4 addresses: ${getLocalAddresses().join(", ") || "none detected"}`);
     const peerDiscovery = new PeerDiscovery(identity);
     peerDiscovery.start();
     ipcMain.handle("get-app-info", () => "LocalMesh Electron engine is running.");
