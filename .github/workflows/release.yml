@@ -37,4 +37,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         shell: pwsh
-        run: gh release create $env:GITHUB_REF_NAME release/*.exe --title $env:GITHUB_REF_NAME --generate-notes
+        run: |
+          $installer = Get-ChildItem -Path release -Filter *.exe -File | Select-Object -First 1
+          if (-not $installer) { throw "Windows installer was not created" }
+          gh release create $env:GITHUB_REF_NAME $installer.FullName --title $env:GITHUB_REF_NAME --generate-notes
