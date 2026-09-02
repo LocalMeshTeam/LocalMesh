@@ -1,58 +1,42 @@
 # LocalMesh Learning Guide
 
-This document describes the languages, tools, and concepts used in LocalMesh. It is a learning map, not a claim that the entire project is finished.
+LocalMesh is a Windows desktop application built with React, TypeScript, Electron, Bun, SQLite, and Node networking APIs.
 
-## TypeScript and React
+## What to learn
 
-Used for the frontend. Learn types, interfaces, functions, promises, `async`/`await`, error handling, components, props, state, `useEffect`, conditional rendering, loading/error states, and service modules.
+- React and TypeScript: components, state, effects, promises, forms, and typed APIs in `src/App.tsx`.
+- Vite and Bun: renderer development/builds and dependency management in `vite.config.ts` and `package.json`.
+- Electron: main process, `BrowserWindow`, preload, context isolation, and IPC in `electron/main.ts` and `electron/preload.cts`.
+- SQLite: migrations, tables, foreign keys, and parameterized queries in `electron/database.ts`.
+- Networking: UDP multicast discovery, TCP sockets, framing, retries, and acknowledgements in `electron/discovery.ts` and `electron/transport.ts`.
+- Security: Ed25519 signatures, X25519 key exchange, AES-GCM encryption, fingerprints, and trust records in `electron/security.ts` and `electron/trust.ts`.
+- File transfer: chunking, checksums, safe storage, progress, cancellation, and acknowledgements in `electron/file-transfer.ts` and `electron/storage.ts`.
 
-Status: basic identity screen and Electron IPC are implemented; chat and networking UI are not.
-
-## Vite and Bun
-
-Vite serves and builds the frontend. Bun installs JavaScript dependencies and runs scripts from `package.json`.
-
-Learn `package.json`, lockfiles, development servers, production builds, and why `bun run dev` starts both Vite and Electron.
-
-Status: project setup and build workflow are complete.
-
-## Electron and TypeScript
-
-The Electron main process handles desktop logic, persistence, and future networking. Learn typed modules, promises, Electron windows, context isolation, preload scripts, IPC handlers, and Node filesystem APIs.
-
-## Electron IPC
-
-Used to package the frontend as a desktop app and bridge the renderer to the TypeScript main process.
-
-Learn BrowserWindow, IPC, context isolation, preload scripts, events, filesystem/path APIs, and desktop/mobile differences.
-
-Status: IPC handlers, startup setup, a context-isolated preload bridge, and database ownership are implemented.
-
-## SQLite and SQL
-
-Used for local persistence. Learn databases, tables, rows, columns, primary keys, foreign keys, indexes, migrations, parameterized queries, transactions, repositories, and database error handling.
-
-Status: SQLite connection, migrations, identity storage, and the conversation/message schema are implemented. Complete CRUD and IPC access are future work.
-
-## Future networking concepts
-
-Not implemented yet: LAN, subnets, IP addresses, ports, TCP, UDP, sockets, framing, serialization protocols, timeouts, reconnects, broadcast, multicast, mDNS, peer discovery, async networking, firewalls, and hotspot limitations.
-
-## Future product concepts
-
-Not implemented yet: message delivery lifecycle, file streaming, chunking, checksums, throughput measurement, peer authentication, encryption, key management, screen capture, consent, Android permissions, and mobile networking.
-
-## Current checkpoint
+## Runtime flow
 
 ```text
-React calls a typed preload API.
-Electron routes the request to the main process.
-The TypeScript service uses a database repository.
-The repository reads or writes SQLite.
-The result returns to React.
+React UI
+  -> typed window.localmesh API
+  -> context-isolated preload
+  -> Electron IPC handlers
+  -> database, discovery, transport, security, or file storage
+  -> result/event back to React
 ```
 
-The project is intentionally incomplete. Conversation and message operations are now available in the backend through Electron IPC. The next learning step is the LAN networking foundation; the frontend will consume these APIs later.
+## Commands
 
-See [`ARCHITECTURE.md`](ARCHITECTURE.md) for the file map, runtime flow, and CI/CD explanation.
-The desktop runtime is Electron and all application logic is TypeScript. Use Bun for package installation and scripts. The renderer communicates with the Electron main process through the context-isolated preload bridge exposed as `window.localmesh`.
+```powershell
+bun install
+bun run dev
+bun run test
+bun run build
+bun run package:win
+```
+
+`bun run test` runs portable tests with Bun and SQLite tests with Electron's Node runtime because `better-sqlite3` is an Electron native module.
+
+## Current status
+
+The initial desktop chat and file-transfer experience is implemented. The main remaining validation is testing two real computers on the same LAN. Mobile clients, macOS/Linux installers, code signing, and advanced transfer history are future work.
+
+See [`ARCHITECTURE.md`](ARCHITECTURE.md), [`ROADMAP.md`](ROADMAP.md), and [`TESTING.md`](TESTING.md) for detailed information.

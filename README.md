@@ -1,99 +1,112 @@
 # LocalMesh
 
-LocalMesh is a local-first, offline LAN communication platform. Its long-term goal is to support device discovery, peer-to-peer chat, file transfer, large-file transfer, screen sharing, and secure communication without depending on the Internet.
+LocalMesh is a desktop application for private communication over a local Wi-Fi, Ethernet, or compatible mobile-hotspot network. It uses Electron, TypeScript, React, Bun, SQLite, UDP discovery, and encrypted TCP transport. It does not require a cloud server or user account.
 
-The project is currently in the backend foundation stage. Electron IPC, local device identity, SQLite initialization, conversation/message APIs, LAN peer discovery, TCP message transport, signed peer handshakes, and encrypted message payloads are implemented. Chat UI, file transfer, screen sharing, trusted-peer authorization, and complete security are not implemented yet.
+## Current status
 
-## Technology
+The Windows desktop application, chat UI, peer discovery, encrypted messaging, file transfer, installer, automated tests, CI, and Windows release pipeline are implemented. Real two-computer LAN testing is still required before production release. Android and iOS clients are not included.
 
-- React and TypeScript for the user interface
-- Vite for frontend development and builds
-- Electron for the desktop window and frontend-to-main-process bridge
-- TypeScript for desktop application logic
-- SQLite through `better-sqlite3` for local persistence
-- Bun for JavaScript package management and scripts
+## User installation
 
-## Prerequisites
+Download the latest Windows installer from:
 
-On Windows, install Bun. Electron bundles its Chromium runtime, so Rust and WebView2 are not required for this application.
+https://github.com/LocalMeshTeam/LocalMesh/releases
 
-Check the tools with:
+Install `LocalMesh Setup <version>.exe`, open LocalMesh on two computers, and connect both computers to the same local network. Trust the discovered peer, select Chat, then send messages or files.
+
+## Developer setup
 
 ```powershell
-bun --version
-```
-
-## Clone and install
-
-```powershell
-git clone https://github.com/DikshJaswal/LocalMesh.git
+git clone https://github.com/LocalMeshTeam/LocalMesh.git
 cd LocalMesh
 bun install
-```
-
-JavaScript dependencies are restored by Bun. `better-sqlite3` stores the database in Electron's application data directory.
-
-## Run the desktop application
-
-```powershell
 bun run dev
 ```
 
-This starts Vite and opens a separate Electron desktop window. Do not open `http://localhost:1420` directly in a normal browser when testing IPC; a normal browser does not have Electron's preload bridge.
-
-## Other commands
+Use `bun run dev`, not the Vite URL directly, because Electron provides the IPC bridge.
 
 ```powershell
-bun run dev:renderer
-bun run build
-bun start
+bun run test          # unit tests plus Electron SQLite tests
+bun run test:unit     # portable tests for CI
+bun run build         # renderer and Electron production build
+bun run package:win   # Windows NSIS installer in release/
 ```
 
-## Project structure
+## File map
 
-```text
-LocalMesh/
-├── electron/                    Electron main process and preload bridge
-├── src/                         React + TypeScript renderer
-├── docs/                        Contributor and learning documentation
-├── package.json                 Bun scripts and dependencies
-├── tsconfig.electron.json       Electron TypeScript configuration
-└── vite.config.ts               Vite configuration
+### Application entry points
+
+- `index.html` - HTML shell loaded by Vite.
+- `src/main.tsx` - mounts the React application.
+- `src/App.tsx` - peers, conversations, messages, trust controls, file transfer, and status feedback.
+- `src/App.css` - renderer layout, responsive styling, chat, and transfer styles.
+- `electron/main.ts` - Electron main process, database startup, discovery, transport, IPC, messages, and files.
+- `electron/preload.cts` - safe context-isolated bridge exposed to React.
+- `src/electron.d.ts` - TypeScript declarations for the preload API.
+
+### Persistence and security
+
+- `electron/database.ts` - SQLite migrations, identity, conversations, messages, and statuses.
+- `electron/security.ts` - Ed25519 signing, X25519 key exchange, AES-GCM encryption, and fingerprints.
+- `electron/trust.ts` - persistent trusted-peer records and revoke checks.
+- `electron/storage.ts` - safe file storage, chunk writes, size limits, and SHA-256 verification.
+
+### LAN networking
+
+- `electron/discovery.ts` - UDP multicast announcements and online peer tracking on `239.255.42.99:45454`.
+- `electron/protocol.ts` - versioned JSON packets and validation.
+- `electron/transport.ts` - authenticated TCP transport on port `45455`, messages, files, acknowledgements, retries, and timeouts.
+- `electron/file-transfer.ts` - signed file offers, encrypted chunks, and completion verification.
+
+### Tests
+
+- `electron/database.test.ts` - SQLite behavior and validation.
+- `electron/discovery.test.ts` - discovery packet validation.
+- `electron/protocol.test.ts` - packet encoding and decoding.
+- `electron/security.test.ts` - key persistence, signing, and encryption.
+- `electron/storage.test.ts` - chunks, safe paths, and checksums.
+- `electron/transport.test.ts` - encrypted loopback transport.
+- `electron/file-transfer.test.ts` - signed and encrypted file transfer.
+- `electron/trust.test.ts` - trust persistence and key changes.
+
+### Configuration and documentation
+
+- `package.json` - dependencies, scripts, metadata, and Electron Builder configuration.
+- `bun.lock` - exact Bun dependency lockfile.
+- `vite.config.ts` - Vite configuration.
+- `tsconfig.json` and `tsconfig.electron.json` - renderer and Electron TypeScript configuration.
+- `.gitignore` - generated builds, installers, databases, and local artifacts.
+- `.github/workflows/ci.yml` - build and portable tests for pushes and pull requests.
+- `.github/workflows/release.yml` - Windows installer and GitHub Release for `v*` tags.
+- `docs/ARCHITECTURE.md` - detailed runtime flow.
+- `docs/ROADMAP.md` - project phases.
+- `docs/TESTING.md` - automated and two-computer LAN testing.
+- `docs/README.md` - learning guide.
+
+## CI/CD pipeline
+
+CI runs on pushes and pull requests. It installs dependencies, builds the application, and runs portable backend tests.
+
+CD runs when a version tag is pushed:
+
+```powershell
+git tag v0.1.2
+git push origin v0.1.2
 ```
 
-See [`docs/README.md`](docs/README.md).
+The release job builds `LocalMesh Setup <version>.exe`, uploads the artifact, and attaches it to a GitHub Release. Installers are generated outputs and are not committed to Git.
 
-For the file relationships and runtime flow, see [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md).
+## Data and networking
 
-For the completed and remaining development phases, see [`docs/ROADMAP.md`](docs/ROADMAP.md).
+Conversations, messages, trusted keys, and received files are stored locally. Discovered peers and their current IP addresses are temporary and rediscovered whenever the app runs.
 
-For backend and two-device LAN testing, see [`docs/TESTING.md`](docs/TESTING.md).
+Both computers must be on the same LAN and allow UDP `45454` and TCP `45455` through Windows Firewall. Mobile hotspots may block multicast or device-to-device traffic.
 
-## Current implementation status
+## Remaining work
 
-### Completed
-
-- Electron + React + TypeScript project setup
-- TypeScript main process compilation
-- React-to-Electron IPC using a context-isolated preload bridge
-- IPC handlers for app info, identity, conversations, and messages
-- UUID-based local device identity
-- Identity persistence in SQLite
-- Electron-managed database connection
-- SQLite migrations versions 1 and 2
-- Device identity, conversations, and messages tables
-- Initial database service, peer discovery, and TypeScript checks
-
-### Not completed yet
-
-- Complete LAN message delivery and retry handling
-- Conversation and chat UI
-- Peer authentication and encryption
-- File transfer
-- Screen sharing
-- Mobile application
-- Performance benchmarks
-
-## Development approach
-
-LocalMesh is built incrementally. Each subsystem is explained, implemented, tested, and committed before the next subsystem is started. Communication must work on a LAN even when Internet access is disabled; no cloud database or cloud transport is planned for LAN communication.
+- Complete two-computer LAN validation.
+- Add file-transfer history records to SQLite.
+- Add a custom application icon.
+- Improve production logging and error recovery.
+- Add macOS/Linux packaging, code signing, and auto-updates later.
+- Build Android/iOS clients as a separate project later.

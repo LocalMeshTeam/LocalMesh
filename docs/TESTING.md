@@ -12,7 +12,7 @@ bun run test
 
 ## Two-computer LAN test
 
-This verifies peer discovery and TCP transport without changing the frontend.
+This verifies peer discovery, messaging, and file transfer using the desktop frontend.
 
 ### Requirements
 
@@ -64,7 +64,18 @@ When the other computer is found:
 Discovered LocalMesh peer <display name> at <ip address>
 ```
 
-The current frontend does not expose peer discovery or message controls yet. This test currently verifies discovery, ports, startup, and clean shutdown. Message controls will be added during the frontend phase.
+The current frontend exposes peer discovery, trust controls, conversations, messaging, and file transfer. Verify each action using the checklist below.
+
+### Application checklist
+
+- Confirm both devices appear under **Nearby devices**.
+- Confirm device names and IP addresses are shown.
+- Trust a peer, then open a conversation.
+- Send a message and confirm it appears on both devices.
+- Restart the app and confirm messages remain saved.
+- Send a file and verify progress, completion, and **Open**.
+- Cancel a large transfer and confirm it stops.
+- Revoke peer trust and confirm the peer returns to an untrusted state.
 
 ### Troubleshooting
 

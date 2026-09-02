@@ -1,6 +1,6 @@
 # LocalMesh Project Roadmap
 
-This document tracks what LocalMesh has completed and what remains. The project is being built backend-first. The frontend chat experience will be implemented only after the backend and LAN transport are stable.
+This document tracks what LocalMesh has completed and what remains. The backend foundation is stable and the initial frontend chat experience is implemented. Real two-device LAN validation is still pending.
 
 ## Completed
 
@@ -109,7 +109,7 @@ Remaining:
 
 ### Phase 5 — Security
 
-Status: complete for the backend foundation; authorization controls are exposed for the future frontend.
+Status: complete for the backend foundation; authorization controls are exposed in the frontend.
 
 Files:
 
@@ -137,7 +137,7 @@ Implemented:
 
 Remaining work:
 
-- Frontend controls for reviewing and approving discovered peers.
+- Improve advanced security and production error handling.
 
 ### Phase 6 — Frontend application
 
@@ -171,20 +171,22 @@ Completed:
 
 Status: storage and encrypted packet routing implemented; file-selection IPC and end-to-end transfer remain.
 
-Files to add:
+Files:
 
 - `electron/file-transfer.ts`
 - `electron/storage.ts`
 
-Work:
+Completed:
 
-- Add transfer protocol and IPC file selection APIs.
 - File selection and metadata.
-- Chunked transfer.
-- Progress reporting.
-- Checksums.
-- Retry and resume support.
-- Safe local storage.
+- Encrypted chunked transfer with acknowledgements and retries.
+- Progress, cancellation, and checksum verification.
+- Safe local storage and opening received files.
+
+Remaining:
+
+- Add transfer history records to SQLite.
+- Add resume support for interrupted transfers.
 
 ### Phase 8 — Screen sharing
 
@@ -200,12 +202,9 @@ Work:
 
 Status: database, protocol, security, trust, and loopback transport coverage added; LAN validation remains.
 
-Files to add:
+Files:
 
-- `electron/database.test.ts`
-- `electron/discovery.test.ts`
-- `electron/transport.test.ts`
-- `electron/security.test.ts`
+- All backend test files under `electron/`.
 
 Automated tests now cover database behavior, key persistence, signatures, encryption/decryption, packet round trips, trust records, transport delivery, and malformed packet rejection.
 

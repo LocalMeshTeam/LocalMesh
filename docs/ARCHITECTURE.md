@@ -52,13 +52,13 @@ Device identity uses the operating-system hostname and username when first creat
 6. The preload bridge sends the request through Electron IPC.
 7. `electron/main.ts` validates the request boundary and calls the database service.
 8. `electron/database.ts` reads or writes SQLite.
-9. The result returns through IPC; the future frontend will render it.
+9. The result returns through IPC and the React frontend renders it.
 
 In parallel, `electron/discovery.ts` sends a discovery announcement every five seconds on multicast address `239.255.42.99`, port `45454`. It records remote peers and removes peers that have not announced for fifteen seconds.
 
 Message transport uses TCP port `45455`. Each message is newline-framed JSON and requires an acknowledgement within five seconds. Failed attempts are retried up to three times; the receiver's message ID deduplication makes retries safe.
 
-Each installation creates persistent Ed25519 signing and X25519 key-exchange keys under Electron's user-data directory. Transport hello packets advertise and sign the public keys, and invalid signatures are rejected. Message payloads use an X25519-derived AES-256-GCM key and Ed25519 signatures. The transport pins a device's signing key for the current session, rejects messages outside a one-minute clock window, and SQLite deduplicates message IDs. `electron/trust.ts` persists approved peer keys; the future frontend will provide the approval and revoke controls.
+Each installation creates persistent Ed25519 signing and X25519 key-exchange keys under Electron's user-data directory. Transport hello packets advertise and sign the public keys, and invalid signatures are rejected. Message payloads use an X25519-derived AES-256-GCM key and Ed25519 signatures. The transport pins a device's signing key for the current session, rejects messages outside a one-minute clock window, and SQLite deduplicates message IDs. `electron/trust.ts` persists approved peer keys, and the frontend exposes trust and revoke controls.
 
 ## Commands
 
@@ -86,4 +86,4 @@ Rebuilds native dependencies for Electron when the Node ABI changes.
 
 This document is repository documentation. It is not copied into the application bundle.
 
-CD is not implemented yet. A future CD workflow should use Electron Forge or electron-builder to create platform installers and publish them from version tags or GitHub releases.
+`.github/workflows/release.yml` is CD. It runs for `v*` tags, builds a Windows NSIS installer, uploads the artifact, and creates a GitHub Release.
