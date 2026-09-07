@@ -98,8 +98,8 @@ export class NetworkTransport {
     return new Promise((resolve, reject) => {
       const existingSocket = this.sockets.get(peer.device_id);
       if (existingSocket && !existingSocket.destroyed) {
-        this.write(existingSocket, this.messagePacket(message, peer.exchange_public_key));
         this.waitForAck(message.message_id, resolve, reject);
+        this.write(existingSocket, this.messagePacket(message, peer.exchange_public_key));
         return;
       }
 
@@ -109,8 +109,8 @@ export class NetworkTransport {
         connected = true;
         this.attachSocket(socket);
         this.write(socket, this.helloPacket());
-        this.write(socket, this.messagePacket(message, peer.exchange_public_key));
         this.waitForAck(message.message_id, resolve, reject);
+        this.write(socket, this.messagePacket(message, peer.exchange_public_key));
       });
       socket.once("error", (error) => {
         if (!connected) reject(error);
