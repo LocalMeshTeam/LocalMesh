@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createConversation, createMessage, ensureConversation, listConversations, listMessages, loadOrCreateIdentity, openDatabase, saveReceivedMessage, updateMessageStatus } from "./database.js";
+import { createConversation, createMessage, ensureConversation, listConversations, listMessages, loadOrCreateIdentity, openDatabase, saveKnownPeer, saveReceivedMessage, updateMessageStatus } from "./database.js";
 import { DISCOVERY_PORT, getLocalAddresses, MULTICAST_ADDRESS, PeerDiscovery } from "./discovery.js";
 import { NetworkTransport, TRANSPORT_PORT } from "./transport.js";
 import { SecureIdentity } from "./security.js";
@@ -85,9 +85,9 @@ app.whenReady().then(() => {
       } catch (error) {
         console.error("Failed to persist received message:", error);
       }
-    }, (messageId) => updateMessageStatus(database, messageId, "delivered"), 45455, "0.0.0.0", trustedPeers, (packet, peer) => handleFilePacket(packet, peer));
+    }, (messageId) => updateMessageStatus(database, messageId, "delivered"), 45455, "0.0.0.0", trustedPeers, (packet, peer) => handleFilePacket(packet, peer), (peer) => saveKnownPeer(database, peer));
     lanTransport.start();
-    const peerDiscovery = new PeerDiscovery(identity, secureIdentity);
+    const peerDiscovery = new PeerDiscovery(identity, secureIdentity, (peer) => saveKnownPeer(database, peer));
     peerDiscovery.start();
     ipcMain.handle("get-app-info", () => "LocalMesh Electron engine is running.");
     ipcMain.handle("get-device-identity", () => identity);
@@ -99,7 +99,10 @@ app.whenReady().then(() => {
     }));
     ipcMain.handle("list-peers", () => peerDiscovery.listPeers());
     ipcMain.handle("list-conversations", () => listConversations(database));
-    ipcMain.handle("create-conversation", (_event, peerId: string) => createConversation(database, peerId));
+    ipcMain.handle("create-conversation", (_event, peerId: string) => {
+      const peer = peerDiscovery.listPeers().find((candidate) => candidate.device_id === peerId);
+      return createConversation(database, peerId, peer?.device_name || "", peer?.display_name || "");
+    });
     ipcMain.handle("list-messages", (_event, conversationId: string) => listMessages(database, conversationId));
     ipcMain.handle("choose-and-send-file", async (_event, conversationId: string) => {
       const conversation = listConversations(database).find((item) => item.conversation_id === conversationId);

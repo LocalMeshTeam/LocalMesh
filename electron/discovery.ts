@@ -61,7 +61,7 @@ export class PeerDiscovery {
   private cleanupTimer: NodeJS.Timeout | undefined;
   private started = false;
 
-  public constructor(private readonly identity: Omit<LocalPeer, "address" | "last_seen" | "transport_port" | "signing_public_key" | "exchange_public_key">, private readonly secureIdentity: SecureIdentity) {
+  public constructor(private readonly identity: Omit<LocalPeer, "address" | "last_seen" | "transport_port" | "signing_public_key" | "exchange_public_key">, private readonly secureIdentity: SecureIdentity, private readonly onPeerDiscovered?: (peer: LocalPeer) => void) {
     this.socket.on("message", (message, remote) => this.handleMessage(message, remote.address));
     this.socket.on("error", (error) => console.error("LAN discovery socket error:", error));
   }
@@ -117,6 +117,7 @@ export class PeerDiscovery {
     if (!peer) return;
     const isNewPeer = !this.peers.has(peer.device_id);
     this.peers.set(peer.device_id, peer);
+    this.onPeerDiscovered?.(peer);
     if (isNewPeer) console.log(`Discovered LocalMesh peer ${peer.display_name} at ${peer.address}`);
   }
 

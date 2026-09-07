@@ -99,7 +99,7 @@ function App() {
     catch (reason) { setError(String(reason)); }
   };
 
-  const peerLabel = (peerId: string) => peers.find((peer) => peer.device_id === peerId)?.display_name || peerId;
+  const peerLabel = (peerId: string) => peers.find((peer) => peer.device_id === peerId)?.device_name || conversations.find((conversation) => conversation.peer_id === peerId)?.peer_name || peers.find((peer) => peer.device_id === peerId)?.display_name || conversations.find((conversation) => conversation.peer_id === peerId)?.peer_display_name || "Unknown device";
 
   const refreshNow = async () => { setRefreshing(true); await Promise.all([refreshPeers(), refreshConversations(), refreshTrusted()]); setRefreshing(false); };
   const copyDeviceId = async () => { await navigator.clipboard.writeText(identity?.device_id || ""); setCopied(true); window.setTimeout(() => setCopied(false), 1500); };

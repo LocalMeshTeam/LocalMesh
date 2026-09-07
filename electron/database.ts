@@ -27,9 +27,13 @@ export type DeviceIdentity = {
 export type Conversation = {
   conversation_id: string;
   peer_id: string;
+  peer_name?: string;
+  peer_display_name?: string;
   created_at: string;
   updated_at: string;
 };
+
+export type KnownPeer = { device_id: string; device_name: string; display_name: string; last_seen: string };
 
 export type Message = {
   message_id: string;
@@ -64,11 +68,20 @@ export function openDatabase(userDataPath: string): SQLiteDatabase {
       FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
+    CREATE TABLE IF NOT EXISTS known_peers (
+      device_id TEXT PRIMARY KEY NOT NULL, device_name TEXT NOT NULL,
+      display_name TEXT NOT NULL, last_seen TEXT NOT NULL
+    );
     INSERT OR IGNORE INTO schema_migrations (version, applied_at)
       VALUES (2, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
     INSERT OR IGNORE INTO schema_migrations (version, applied_at)
       VALUES (3, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'));
   `);
+  const conversationColumns = database.prepare("PRAGMA table_info(conversations)").all() as Array<{ name: string }>;
+  if (!conversationColumns.some((column) => column.name === "peer_name")) database.exec("ALTER TABLE conversations ADD COLUMN peer_name TEXT");
+  if (!conversationColumns.some((column) => column.name === "peer_display_name")) database.exec("ALTER TABLE conversations ADD COLUMN peer_display_name TEXT");
+  database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))").run();
+  database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))").run();
   return database;
 }
 
@@ -98,22 +111,32 @@ export function loadOrCreateIdentity(database: SQLiteDatabase): DeviceIdentity {
 }
 
 export function listConversations(database: SQLiteDatabase): Conversation[] {
-  return database.prepare("SELECT conversation_id, peer_id, created_at, updated_at FROM conversations ORDER BY updated_at DESC").all() as Conversation[];
+  return database.prepare("SELECT c.conversation_id, c.peer_id, COALESCE(NULLIF(c.peer_name, ''), p.device_name, '') AS peer_name, COALESCE(NULLIF(c.peer_display_name, ''), p.display_name, '') AS peer_display_name, c.created_at, c.updated_at FROM conversations c LEFT JOIN known_peers p ON p.device_id = c.peer_id ORDER BY c.updated_at DESC").all() as Conversation[];
 }
 
-export function createConversation(database: SQLiteDatabase, peerId: string): Conversation {
+export function saveKnownPeer(database: SQLiteDatabase, peer: KnownPeer): void {
+  database.prepare("INSERT INTO known_peers (device_id, device_name, display_name, last_seen) VALUES (?, ?, ?, ?) ON CONFLICT(device_id) DO UPDATE SET device_name = excluded.device_name, display_name = excluded.display_name, last_seen = excluded.last_seen")
+    .run(peer.device_id, peer.device_name, peer.display_name, peer.last_seen);
+  database.prepare("UPDATE conversations SET peer_name = COALESCE(NULLIF(peer_name, ''), ?), peer_display_name = COALESCE(NULLIF(peer_display_name, ''), ?) WHERE peer_id = ?")
+    .run(peer.device_name, peer.display_name, peer.device_id);
+}
+
+export function createConversation(database: SQLiteDatabase, peerId: string, peerName = "", peerDisplayName = ""): Conversation {
   peerId = requiredText(peerId, "peerId", MAX_PEER_ID_LENGTH);
-  const existing = database.prepare("SELECT conversation_id, peer_id, created_at, updated_at FROM conversations WHERE peer_id = ? LIMIT 1").get(peerId) as Conversation | undefined;
-  if (existing) return existing;
+  const existing = database.prepare("SELECT conversation_id, peer_id, peer_name, peer_display_name, created_at, updated_at FROM conversations WHERE peer_id = ? LIMIT 1").get(peerId) as Conversation | undefined;
+  if (existing) {
+    if ((!existing.peer_name && peerName) || (!existing.peer_display_name && peerDisplayName)) database.prepare("UPDATE conversations SET peer_name = COALESCE(NULLIF(peer_name, ''), ?), peer_display_name = COALESCE(NULLIF(peer_display_name, ''), ?) WHERE conversation_id = ?").run(peerName, peerDisplayName, existing.conversation_id);
+    return { ...existing, peer_name: existing.peer_name || peerName, peer_display_name: existing.peer_display_name || peerDisplayName };
+  }
   const now = new Date().toISOString();
   const conversation: Conversation = {
     conversation_id: crypto.randomUUID(),
     peer_id: peerId,
     created_at: now,
-    updated_at: now,
+    updated_at: now, peer_name: peerName, peer_display_name: peerDisplayName,
   };
-  database.prepare("INSERT INTO conversations (conversation_id, peer_id, created_at, updated_at) VALUES (?, ?, ?, ?)")
-    .run(conversation.conversation_id, conversation.peer_id, conversation.created_at, conversation.updated_at);
+  database.prepare("INSERT INTO conversations (conversation_id, peer_id, peer_name, peer_display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(conversation.conversation_id, conversation.peer_id, conversation.peer_name, conversation.peer_display_name, conversation.created_at, conversation.updated_at);
   return conversation;
 }
 
@@ -121,11 +144,11 @@ export function ensureConversation(database: SQLiteDatabase, conversationId: str
   conversationId = requiredText(conversationId, "conversationId", 255);
   peerId = requiredText(peerId, "peerId", MAX_PEER_ID_LENGTH);
   createdAt = requiredText(createdAt, "createdAt", 64);
-  const existing = database.prepare("SELECT conversation_id, peer_id, created_at, updated_at FROM conversations WHERE conversation_id = ?").get(conversationId) as Conversation | undefined;
+  const existing = database.prepare("SELECT conversation_id, peer_id, peer_name, peer_display_name, created_at, updated_at FROM conversations WHERE conversation_id = ?").get(conversationId) as Conversation | undefined;
   if (existing) return existing;
-  database.prepare("INSERT INTO conversations (conversation_id, peer_id, created_at, updated_at) VALUES (?, ?, ?, ?)")
-    .run(conversationId, peerId, createdAt, createdAt);
-  return { conversation_id: conversationId, peer_id: peerId, created_at: createdAt, updated_at: createdAt };
+  database.prepare("INSERT INTO conversations (conversation_id, peer_id, peer_name, peer_display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
+    .run(conversationId, peerId, "", "", createdAt, createdAt);
+  return { conversation_id: conversationId, peer_id: peerId, peer_name: "", peer_display_name: "", created_at: createdAt, updated_at: createdAt };
 }
 
 export function listMessages(database: SQLiteDatabase, conversationId: string): Message[] {

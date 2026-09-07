@@ -18,7 +18,7 @@ export class NetworkTransport {
   private readonly server: Server;
   private readonly sockets = new Map<string, Socket>();
   private readonly buffers = new Map<Socket, string>();
-  private readonly socketPeers = new Map<Socket, { device_id: string; signing_public_key: string; exchange_public_key: string }>();
+  private readonly socketPeers = new Map<Socket, { device_id: string; device_name: string; display_name: string; signing_public_key: string; exchange_public_key: string }>();
   private readonly pinnedSigningKeys = new Map<string, string>();
   private readonly pendingAcks = new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
   private readonly pendingFileAcks = new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
@@ -33,6 +33,7 @@ export class NetworkTransport {
     private readonly host = "0.0.0.0",
     private readonly trustedPeers?: TrustedPeerStore,
     private readonly onFilePacket?: (packet: ReceivedFilePacket, peer: PeerAddress) => boolean,
+    private readonly onPeerIdentity?: (peer: { device_id: string; device_name: string; display_name: string; last_seen: string }) => void,
   ) {
     this.server = net.createServer((socket) => this.attachSocket(socket));
     this.server.on("error", (error) => console.error("LAN transport server error:", error));
@@ -175,7 +176,8 @@ export class NetworkTransport {
       }
       this.pinnedSigningKeys.set(packet.device_id, packet.signing_public_key);
       this.sockets.set(packet.device_id, socket);
-      this.socketPeers.set(socket, { device_id: packet.device_id, signing_public_key: packet.signing_public_key, exchange_public_key: packet.exchange_public_key });
+      this.socketPeers.set(socket, { device_id: packet.device_id, device_name: packet.device_name, display_name: packet.display_name, signing_public_key: packet.signing_public_key, exchange_public_key: packet.exchange_public_key });
+      this.onPeerIdentity?.({ device_id: packet.device_id, device_name: packet.device_name, display_name: packet.display_name, last_seen: new Date().toISOString() });
       return;
     }
     if (packet.type === "ack") {
