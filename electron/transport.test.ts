@@ -34,3 +34,35 @@ test("transport delivers an encrypted message and acknowledgement", async () => 
     rmSync(secondDirectory, { recursive: true, force: true });
   }
 });
+
+test("transport keeps independent connections for multiple peers", async () => {
+  const directories = [1, 2, 3].map((value) => mkdtempSync(path.join(tmpdir(), `localmesh-transport-${value}-`)));
+  const identities: DeviceIdentity[] = [1, 2, 3].map((value) => ({ device_id: `device-${value}`, device_name: `PC-${value}`, display_name: `User-${value}`, created_at: new Date().toISOString() }));
+  const securities = directories.map((directory) => new SecureIdentity(directory));
+  const received: Message[] = [];
+  const transports = identities.map((identity, index) => new NetworkTransport(identity, securities[index], (message) => received.push(message), () => undefined, 45510 + index, "127.0.0.1"));
+  try {
+    transports.forEach((transport) => transport.start());
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const messages = identities.slice(1).map((identity, index) => ({
+      message_id: `message-${index + 1}`,
+      conversation_id: `conversation-${index + 1}`,
+      sender_id: identity.device_id,
+      receiver_id: identities[0].device_id,
+      content: `hello from ${identity.device_id}`,
+      timestamp: new Date().toISOString(),
+      status: "pending",
+    } satisfies Message));
+    await Promise.all(messages.map((message, index) => transports[index + 1].sendMessage({
+      device_id: identities[0].device_id,
+      address: "127.0.0.1",
+      transport_port: 45510,
+      signing_public_key: securities[0].signingPublicKey,
+      exchange_public_key: securities[0].exchangePublicKey,
+    }, message)));
+    assert.deepEqual(received.map((message) => message.message_id).sort(), ["message-1", "message-2"]);
+  } finally {
+    transports.forEach((transport) => transport.stop());
+    directories.forEach((directory) => rmSync(directory, { recursive: true, force: true }));
+  }
+});

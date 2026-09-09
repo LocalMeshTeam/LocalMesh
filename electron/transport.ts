@@ -108,6 +108,9 @@ export class NetworkTransport {
       socket.once("connect", () => {
         connected = true;
         this.attachSocket(socket);
+        // Reuse outbound connections per peer. Otherwise every message opens
+        // another socket and concurrent handshakes can replace peer state.
+        this.sockets.set(peer.device_id, socket);
         this.write(socket, this.helloPacket());
         this.waitForAck(message.message_id, resolve, reject);
         this.write(socket, this.messagePacket(message, peer.exchange_public_key));

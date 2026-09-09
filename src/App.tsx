@@ -20,8 +20,6 @@ function App() {
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  const mergeMessages = (incoming: Message[]) => setMessages((current) => Array.from(new Map([...current, ...incoming].map((message) => [message.message_id, message])).values()).sort((left, right) => left.timestamp.localeCompare(right.timestamp)));
-
   const refreshPeers = useCallback(() => window.localmesh.listPeers().then(setPeers).catch((reason) => setError(String(reason))), []);
   const refreshConversations = useCallback(() => window.localmesh.listConversations().then(setConversations).catch((reason) => setError(String(reason))), []);
   const refreshTrusted = useCallback(() => window.localmesh.listTrustedPeers().then(setTrusted).catch((reason) => setError(String(reason))), []);
@@ -46,16 +44,18 @@ function App() {
   }, []);
 
   useEffect(() => {
-    if (selected) window.localmesh.listMessages(selected.conversation_id).then(mergeMessages).catch((reason) => setError(String(reason)));
-  }, [selected]);
-
-  useEffect(() => {
+    setMessages([]);
     if (!selected) return;
-    const timer = window.setInterval(() => {
-      window.localmesh.listMessages(selected.conversation_id).then(mergeMessages).catch((reason) => setError(String(reason)));
-    }, 2_000);
-    return () => window.clearInterval(timer);
-  }, [selected]);
+    let active = true;
+    const conversationId = selected.conversation_id;
+    const loadMessages = () => window.localmesh.listMessages(conversationId).then((incoming) => {
+      if (!active) return;
+      setMessages((current) => Array.from(new Map([...current, ...incoming].map((message) => [message.message_id, message])).values()).sort((left, right) => left.timestamp.localeCompare(right.timestamp)));
+    }).catch((reason) => { if (active) setError(String(reason)); });
+    void loadMessages();
+    const timer = window.setInterval(() => { void loadMessages(); }, 2_000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [selected?.conversation_id]);
 
   const openConversation = async (peerId: string) => {
     try { const conversation = await window.localmesh.createConversation(peerId); setConversations(await window.localmesh.listConversations()); setSelected(conversation); }
@@ -66,7 +66,11 @@ function App() {
     event.preventDefault();
     if (!selected || !draft.trim()) return;
     setSending(true);
-    try { const message = await window.localmesh.createMessage(selected.conversation_id, draft); mergeMessages([message]); setDraft(""); setError(""); }
+    try {
+      const message = await window.localmesh.createMessage(selected.conversation_id, draft);
+      setMessages((current) => Array.from(new Map([...current, message].map((item) => [item.message_id, item])).values()).sort((left, right) => left.timestamp.localeCompare(right.timestamp)));
+      setDraft(""); setError("");
+    }
     catch (reason) { setError(String(reason)); }
     finally { setSending(false); }
   };
