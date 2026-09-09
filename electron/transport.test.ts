@@ -60,7 +60,23 @@ test("transport keeps independent connections for multiple peers", async () => {
       signing_public_key: securities[0].signingPublicKey,
       exchange_public_key: securities[0].exchangePublicKey,
     }, message)));
-    assert.deepEqual(received.map((message) => message.message_id).sort(), ["message-1", "message-2"]);
+    const reply: Message = {
+      message_id: "message-3",
+      conversation_id: "conversation-reply",
+      sender_id: identities[0].device_id,
+      receiver_id: identities[1].device_id,
+      content: "reply from device-1",
+      timestamp: new Date().toISOString(),
+      status: "pending",
+    };
+    await transports[0].sendMessage({
+      device_id: identities[1].device_id,
+      address: "127.0.0.1",
+      transport_port: 45511,
+      signing_public_key: securities[1].signingPublicKey,
+      exchange_public_key: securities[1].exchangePublicKey,
+    }, reply);
+    assert.deepEqual(received.map((message) => message.message_id).sort(), ["message-1", "message-2", "message-3"]);
   } finally {
     transports.forEach((transport) => transport.stop());
     directories.forEach((directory) => rmSync(directory, { recursive: true, force: true }));

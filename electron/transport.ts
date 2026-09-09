@@ -16,7 +16,9 @@ export type ReceivedFilePacket = FileOfferPacket | FileChunkPacket | FileComplet
 
 export class NetworkTransport {
   private readonly server: Server;
-  private readonly sockets = new Map<string, Socket>();
+  // Inbound sockets are owned by the peer's send direction. Keep outbound
+  // sockets separate so replies always use our own client connection.
+  private readonly outboundSockets = new Map<string, Socket>();
   private readonly buffers = new Map<Socket, string>();
   private readonly socketPeers = new Map<Socket, { device_id: string; device_name: string; display_name: string; signing_public_key: string; exchange_public_key: string }>();
   private readonly pinnedSigningKeys = new Map<string, string>();
@@ -70,14 +72,15 @@ export class NetworkTransport {
 
   private sendFilePacketAttempt(peer: PeerAddress, packet: ReceivedFilePacket): Promise<void> {
     return new Promise((resolve, reject) => {
-      const existingSocket = this.sockets.get(peer.device_id);
-      if (existingSocket && !existingSocket.destroyed) {
+      const existingSocket = this.outboundSockets.get(peer.device_id);
+      if (existingSocket && !existingSocket.destroyed && existingSocket.writable) {
         this.writeAndWaitForFileAck(existingSocket, packet, resolve, reject);
         return;
       }
       const socket = net.createConnection({ host: peer.address, port: peer.transport_port });
       socket.once("connect", () => {
         this.attachSocket(socket);
+        this.outboundSockets.set(peer.device_id, socket);
         this.write(socket, this.helloPacket());
         this.writeAndWaitForFileAck(socket, packet, resolve, reject);
       });
@@ -96,8 +99,8 @@ export class NetworkTransport {
 
   private sendAttempt(peer: PeerAddress, message: Message): Promise<void> {
     return new Promise((resolve, reject) => {
-      const existingSocket = this.sockets.get(peer.device_id);
-      if (existingSocket && !existingSocket.destroyed) {
+      const existingSocket = this.outboundSockets.get(peer.device_id);
+      if (existingSocket && !existingSocket.destroyed && existingSocket.writable) {
         this.waitForAck(message.message_id, resolve, reject);
         this.write(existingSocket, this.messagePacket(message, peer.exchange_public_key));
         return;
@@ -110,7 +113,7 @@ export class NetworkTransport {
         this.attachSocket(socket);
         // Reuse outbound connections per peer. Otherwise every message opens
         // another socket and concurrent handshakes can replace peer state.
-        this.sockets.set(peer.device_id, socket);
+        this.outboundSockets.set(peer.device_id, socket);
         this.write(socket, this.helloPacket());
         this.waitForAck(message.message_id, resolve, reject);
         this.write(socket, this.messagePacket(message, peer.exchange_public_key));
@@ -132,8 +135,8 @@ export class NetworkTransport {
   public stop(): void {
     if (!this.started) return;
     this.started = false;
-    for (const socket of this.sockets.values()) socket.destroy();
-    this.sockets.clear();
+    for (const socket of this.outboundSockets.values()) socket.destroy();
+    this.outboundSockets.clear();
     this.server.close();
   }
 
@@ -143,7 +146,7 @@ export class NetworkTransport {
     socket.on("close", () => {
       this.buffers.delete(socket);
       this.socketPeers.delete(socket);
-      for (const [deviceId, peerSocket] of this.sockets) if (peerSocket === socket) this.sockets.delete(deviceId);
+      for (const [deviceId, peerSocket] of this.outboundSockets) if (peerSocket === socket) this.outboundSockets.delete(deviceId);
     });
     socket.on("error", (error) => console.error("LAN transport connection error:", error));
   }
@@ -178,7 +181,6 @@ export class NetworkTransport {
         return;
       }
       this.pinnedSigningKeys.set(packet.device_id, packet.signing_public_key);
-      this.sockets.set(packet.device_id, socket);
       this.socketPeers.set(socket, { device_id: packet.device_id, device_name: packet.device_name, display_name: packet.display_name, signing_public_key: packet.signing_public_key, exchange_public_key: packet.exchange_public_key });
       this.onPeerIdentity?.({ device_id: packet.device_id, device_name: packet.device_name, display_name: packet.display_name, last_seen: new Date().toISOString() });
       return;
