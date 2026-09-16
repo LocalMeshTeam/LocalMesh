@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { clearConversationMessages, createConversation, createMessage, deleteMessage, ensureConversation, listMessages, loadOrCreateIdentity, openDatabase, saveReceivedMessage, updateMessageStatus } from "./database.js";
+import { clearConversationFiles, clearConversationMessages, createConversation, createMessage, deleteFileMessage, deleteMessage, ensureConversation, listFileMessages, listMessages, loadOrCreateIdentity, openDatabase, saveFileMessage, saveReceivedMessage, updateMessageStatus } from "./database.js";
 
 test("database persists identity, conversations, messages, and statuses", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "localmesh-database-"));
@@ -25,6 +25,12 @@ test("database persists identity, conversations, messages, and statuses", () => 
     assert.equal(clearConversationMessages(database, conversation.conversation_id), 1);
     assert.equal(listMessages(database, conversation.conversation_id).length, 0);
     assert.equal(deleteMessage(database, secondMessage.message_id), false);
+    saveFileMessage(database, { transfer_id: "file-1", conversation_id: conversation.conversation_id, sender_id: identity.device_id, receiver_id: "peer-1", file_name: "resume.html", timestamp: new Date().toISOString(), status: "sent" });
+    assert.equal(listFileMessages(database, conversation.conversation_id).length, 1);
+    assert.equal(deleteFileMessage(database, "file-1"), true);
+    assert.equal(deleteFileMessage(database, "file-1"), false);
+    saveFileMessage(database, { transfer_id: "file-2", conversation_id: conversation.conversation_id, sender_id: identity.device_id, receiver_id: "peer-1", file_name: "notes.txt", timestamp: new Date().toISOString(), status: "sent" });
+    assert.deepEqual(clearConversationFiles(database, conversation.conversation_id), ["file-2"]);
 
     const incomingConversation = ensureConversation(database, "incoming-conversation", "peer-2", new Date().toISOString());
     const samePeerConversation = ensureConversation(database, "different-conversation-id", "peer-2", new Date().toISOString());

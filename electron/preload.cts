@@ -8,7 +8,9 @@ contextBridge.exposeInMainWorld("localmesh", {
   listConversations: () => ipcRenderer.invoke("list-conversations"),
   createConversation: (peerId: string) => ipcRenderer.invoke("create-conversation", peerId),
   listMessages: (conversationId: string) => ipcRenderer.invoke("list-messages", conversationId),
+  listFileMessages: (conversationId: string) => ipcRenderer.invoke("list-file-messages", conversationId),
   deleteMessage: (messageId: string) => ipcRenderer.invoke("delete-message", messageId),
+  deleteFile: (transferId: string) => ipcRenderer.invoke("delete-file", transferId),
   clearConversation: (conversationId: string) => ipcRenderer.invoke("clear-conversation", conversationId),
   createMessage: (conversationId: string, content: string) => ipcRenderer.invoke("create-message", conversationId, content),
   chooseAndSendFile: (conversationId: string) => ipcRenderer.invoke("choose-and-send-file", conversationId),
@@ -17,13 +19,13 @@ contextBridge.exposeInMainWorld("localmesh", {
   listTrustedPeers: () => ipcRenderer.invoke("list-trusted-peers"),
   trustPeer: (deviceId: string) => ipcRenderer.invoke("trust-peer", deviceId),
   revokePeer: (deviceId: string) => ipcRenderer.invoke("revoke-peer", deviceId),
-  onFileProgress: (listener: (progress: { transfer_id: string; file_name?: string; transferred: number; total: number; status: string }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, progress: { transfer_id: string; file_name?: string; transferred: number; total: number; status: string }) => listener(progress);
+  onFileProgress: (listener: (progress: { transfer_id: string; file_name?: string; transferred: number; total: number; status: string; conversation_id?: string; sender_id?: string; receiver_id?: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: { transfer_id: string; file_name?: string; transferred: number; total: number; status: string; conversation_id?: string; sender_id?: string; receiver_id?: string }) => listener(progress);
     ipcRenderer.on("file-progress", handler);
     return () => ipcRenderer.removeListener("file-progress", handler);
   },
-  onFileReceived: (listener: (file: { transfer_id: string; file_name: string; path: string }) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, file: { transfer_id: string; file_name: string; path: string }) => listener(file);
+  onFileReceived: (listener: (file: { transfer_id: string; conversation_id: string; sender_id: string; receiver_id: string; file_name: string; timestamp: string; status: string; path: string }) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, file: { transfer_id: string; conversation_id: string; sender_id: string; receiver_id: string; file_name: string; timestamp: string; status: string; path: string }) => listener(file);
     ipcRenderer.on("file-received", handler);
     return () => ipcRenderer.removeListener("file-received", handler);
   },

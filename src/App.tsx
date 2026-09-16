@@ -27,8 +27,8 @@ function App() {
   const [sending, setSending] = useState(false);
   const [fileSending, setFileSending] = useState(false);
   const [fileStatus, setFileStatus] = useState("");
-  const [fileProgress, setFileProgress] = useState<{ transfer_id: string; file_name?: string; transferred: number; total: number; status: string } | null>(null);
-  const [receivedFiles, setReceivedFiles] = useState<{ transfer_id: string; file_name: string }[]>([]);
+  const [fileProgress, setFileProgress] = useState<{ transfer_id: string; file_name?: string; transferred: number; total: number; status: string; conversation_id?: string; sender_id?: string; receiver_id?: string } | null>(null);
+  const [fileMessages, setFileMessages] = useState<FileMessage[]>([]);
   const [copied, setCopied] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -51,18 +51,20 @@ function App() {
   useEffect(() => {
     if (!window.localmesh) return;
     const removeProgress = window.localmesh.onFileProgress((progress) => setFileProgress(progress));
-    const removeReceived = window.localmesh.onFileReceived((file) => setReceivedFiles((current) => [file, ...current.filter((item) => item.transfer_id !== file.transfer_id)]));
+    const removeReceived = window.localmesh.onFileReceived((file) => setFileMessages((current) => [file, ...current.filter((item) => item.transfer_id !== file.transfer_id)]));
     return () => { removeProgress(); removeReceived(); };
   }, []);
 
   useEffect(() => {
     setMessages([]);
+    setFileMessages([]);
     if (!selected) return;
     let active = true;
     const conversationId = selected.conversation_id;
-    const loadMessages = () => window.localmesh.listMessages(conversationId).then((incoming) => {
+    const loadMessages = () => Promise.all([window.localmesh.listMessages(conversationId), window.localmesh.listFileMessages(conversationId)]).then(([incoming, files]) => {
       if (!active) return;
       setMessages((current) => Array.from(new Map([...current, ...incoming].map((message) => [message.message_id, message])).values()));
+      setFileMessages(files);
     }).catch((reason) => { if (active) setError(String(reason)); });
     void loadMessages();
     const timer = window.setInterval(() => { void loadMessages(); }, 2_000);
@@ -97,10 +99,19 @@ function App() {
   };
 
   const clearChat = async () => {
-    if (!selected || !messages.length || !window.confirm("Clear every message in this chat from this device?")) return;
+    if (!selected || (!messages.length && !fileMessages.length) || !window.confirm("Clear every message and file in this chat from this device?")) return;
     try {
       await window.localmesh.clearConversation(selected.conversation_id);
-      setMessages([]); setError("");
+      setMessages([]); setFileMessages([]); setError("");
+    } catch (reason) { setError(String(reason)); }
+  };
+
+  const removeFile = async (transferId: string) => {
+    if (!window.confirm("Delete this file from this device?")) return;
+    try {
+      await window.localmesh.deleteFile(transferId);
+      setFileMessages((current) => current.filter((file) => file.transfer_id !== transferId));
+      setError("");
     } catch (reason) { setError(String(reason)); }
   };
 
@@ -114,6 +125,7 @@ function App() {
     setFileSending(true); setFileStatus("Choosing file…"); setFileProgress(null); setError("");
     try {
       const file = await window.localmesh.chooseAndSendFile(selected.conversation_id);
+      setFileMessages(await window.localmesh.listFileMessages(selected.conversation_id));
       setFileStatus(file ? "File sent" : "File selection cancelled");
     } catch (reason) { setError(String(reason)); setFileStatus(""); }
     finally { setFileSending(false); }
@@ -147,7 +159,7 @@ function App() {
         <section><h2>Nearby devices</h2>{peers.length === 0 && <p className="muted">No peers discovered yet.</p>}{peers.map((peer) => { const isTrusted = trusted.some((item) => item.device_id === peer.device_id); return <div className="peer" key={peer.device_id}><div><strong>{peer.display_name}</strong><small><span className="online-dot" />Online · {peer.device_name} · {peer.address}</small></div><div className="actions"><button onClick={() => openConversation(peer.device_id)}>Chat</button>{isTrusted ? <button className="secondary" onClick={() => revokePeer(peer.device_id)}>Revoke</button> : <button onClick={() => trustPeer(peer.device_id)}>Trust</button>}</div></div>; })}</section>
         <section><h2>Conversations</h2>{conversations.length === 0 && <p className="muted">No conversations yet.</p>}{conversations.map((conversation) => <button className={`conversation ${selected?.conversation_id === conversation.conversation_id ? "selected" : ""}`} key={conversation.conversation_id} onClick={() => setSelected(conversation)}>{peerLabel(conversation.peer_id)}{peers.some((peer) => peer.device_id === conversation.peer_id) ? <small>Online</small> : <small>Offline</small>}</button>)}</section>
       </aside>
-      <section className="chat"><div className="chat-header"><div><h2>{selected ? `Conversation with ${peerLabel(selected.peer_id)}` : "Select a device to start"}</h2>{selected && <small>{peers.some((peer) => peer.device_id === selected.peer_id) ? "Online" : "Offline"}</small>}</div>{selected && <button className="clear-chat" type="button" onClick={clearChat} disabled={!messages.length} title="Clear chat"><Icon name="broom" />Clear chat</button>}</div>{selected ? <><div className="messages">{messages.length === 0 && <p className="muted">No messages yet.</p>}{messages.map((message) => <article className={message.sender_id === identity.device_id ? "mine" : "theirs"} key={message.message_id}><span>{message.content}</span><div className="message-meta"><small>{new Date(message.timestamp).toLocaleTimeString()} · {message.status}</small><button className="delete-message" type="button" title="Delete message" aria-label="Delete message" onClick={() => removeMessage(message.message_id)}><Icon name="trash" /></button></div></article>)}{fileStatus && !fileProgress && <div className="chat-file-event"><Icon name="paperclip" /><span>{fileStatus}</span></div>}{fileProgress && <div className="chat-file-event"><Icon name="paperclip" /><span>{fileProgress.status === "complete" ? `Completed: ${fileProgress.file_name || "file"}` : `${fileProgress.status === "sending" ? "Sending" : "Receiving"}: ${fileProgress.file_name || "file"}`}</span>{fileProgress.status !== "complete" && <progress value={fileProgress.transferred} max={fileProgress.total || 1} />}</div>}{receivedFiles.map((file) => <div className="chat-file-event" key={file.transfer_id}><Icon name="paperclip" /><span>{file.file_name}</span><button className="open-file" onClick={() => window.localmesh.openReceivedFile(file.transfer_id)}>Open</button></div>)}</div><form className="composer" onSubmit={sendMessage}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Write a message…" maxLength={10000} disabled={sending || fileSending} /><button type="button" className="secondary" onClick={sendFile} disabled={sending || fileSending} title="Send file"><Icon name="paperclip" />{fileSending ? "Sending file…" : "Send file"}</button>{fileSending && <button type="button" className="cancel" onClick={cancelFile}>Cancel</button>}<button type="submit" disabled={sending || fileSending || !draft.trim()} title="Send message"><Icon name="send" />{sending ? "Sending…" : "Send"}</button></form></> : <div className="empty">Choose a discovered peer from the left.</div>}</section>
+      <section className="chat"><div className="chat-header"><div><h2>{selected ? `Conversation with ${peerLabel(selected.peer_id)}` : "Select a device to start"}</h2>{selected && <small>{peers.some((peer) => peer.device_id === selected.peer_id) ? "Online" : "Offline"}</small>}</div>{selected && <button className="clear-chat" type="button" onClick={clearChat} disabled={!messages.length && !fileMessages.length} title="Clear chat"><Icon name="broom" />Clear chat</button>}</div>{selected ? <><div className="messages">{messages.length === 0 && fileMessages.length === 0 && <p className="muted">No messages yet.</p>}{messages.map((message) => <article className={message.sender_id === identity.device_id ? "mine" : "theirs"} key={message.message_id}><span>{message.content}</span><div className="message-meta"><small>{new Date(message.timestamp).toLocaleTimeString()} · {message.status}</small><button className="delete-message" type="button" title="Delete message" aria-label="Delete message" onClick={() => removeMessage(message.message_id)}><Icon name="trash" /></button></div></article>)}{fileStatus && !fileProgress && <div className="chat-file-event"><Icon name="paperclip" /><span>{fileStatus}</span></div>}{fileProgress && fileProgress.conversation_id === selected.conversation_id && <div className={`chat-file-event ${fileProgress.sender_id === identity.device_id ? "mine" : "theirs"}`}><Icon name="paperclip" /><span>{fileProgress.status === "complete" ? `Completed: ${fileProgress.file_name || "file"}` : `${fileProgress.status === "sending" ? "Sending" : "Receiving"}: ${fileProgress.file_name || "file"}`}</span>{fileProgress.status !== "complete" && <progress value={fileProgress.transferred} max={fileProgress.total || 1} />}</div>}{fileMessages.map((file) => <div className={`chat-file-event ${file.sender_id === identity.device_id ? "mine" : "theirs"}`} key={file.transfer_id}><Icon name="paperclip" /><span>{file.file_name}</span><button className="open-file" onClick={() => window.localmesh.openReceivedFile(file.transfer_id)}>Open</button><button className="delete-message" type="button" title="Delete file" aria-label="Delete file" onClick={() => removeFile(file.transfer_id)}><Icon name="trash" /></button></div>)}</div><form className="composer" onSubmit={sendMessage}><input value={draft} onChange={(event) => setDraft(event.target.value)} placeholder="Write a message…" maxLength={10000} disabled={sending || fileSending} /><button type="button" className="secondary" onClick={sendFile} disabled={sending || fileSending} title="Send file"><Icon name="paperclip" />{fileSending ? "Sending file…" : "Send file"}</button>{fileSending && <button type="button" className="cancel" onClick={cancelFile}>Cancel</button>}<button type="submit" disabled={sending || fileSending || !draft.trim()} title="Send message"><Icon name="send" />{sending ? "Sending…" : "Send"}</button></form></> : <div className="empty">Choose a discovered peer from the left.</div>}</section>
     </div>
   </main>;
 }

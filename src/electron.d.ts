@@ -25,6 +25,7 @@ type NetworkInfo = {
 
 type Conversation = { conversation_id: string; peer_id: string; peer_name?: string; peer_display_name?: string; created_at: string; updated_at: string };
 type Message = { message_id: string; conversation_id: string; sender_id: string; receiver_id: string; content: string; timestamp: string; status: string };
+type FileMessage = { transfer_id: string; conversation_id: string; sender_id: string; receiver_id: string; file_name: string; timestamp: string; status: "sent" | "received" };
 type TrustedPeer = { device_id: string; signing_public_key: string; fingerprint: string; trusted_at: string; revoked_at?: string };
 
 interface Window {
@@ -36,7 +37,9 @@ interface Window {
     listConversations(): Promise<Conversation[]>;
     createConversation(peerId: string): Promise<Conversation>;
     listMessages(conversationId: string): Promise<Message[]>;
+    listFileMessages(conversationId: string): Promise<FileMessage[]>;
     deleteMessage(messageId: string): Promise<boolean>;
+    deleteFile(transferId: string): Promise<boolean>;
     clearConversation(conversationId: string): Promise<number>;
     createMessage(conversationId: string, content: string): Promise<Message>;
     chooseAndSendFile(conversationId: string): Promise<unknown>;
@@ -45,7 +48,7 @@ interface Window {
     listTrustedPeers(): Promise<TrustedPeer[]>;
     trustPeer(deviceId: string): Promise<TrustedPeer>;
     revokePeer(deviceId: string): Promise<void>;
-    onFileProgress(listener: (progress: { transfer_id: string; file_name?: string; transferred: number; total: number; status: string }) => void): () => void;
-    onFileReceived(listener: (file: { transfer_id: string; file_name: string; path: string }) => void): () => void;
+    onFileProgress(listener: (progress: { transfer_id: string; file_name?: string; transferred: number; total: number; status: string; conversation_id?: string; sender_id?: string; receiver_id?: string }) => void): () => void;
+    onFileReceived(listener: (file: FileMessage & { path: string }) => void): () => void;
   };
 }

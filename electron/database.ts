@@ -45,6 +45,16 @@ export type Message = {
   status: string;
 };
 
+export type FileMessage = {
+  transfer_id: string;
+  conversation_id: string;
+  sender_id: string;
+  receiver_id: string;
+  file_name: string;
+  timestamp: string;
+  status: "sent" | "received";
+};
+
 export function openDatabase(userDataPath: string): SQLiteDatabase {
   mkdirSync(userDataPath, { recursive: true });
   const database = new Database(path.join(userDataPath, "localmesh.db"));
@@ -68,6 +78,13 @@ export function openDatabase(userDataPath: string): SQLiteDatabase {
       FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
+    CREATE TABLE IF NOT EXISTS file_messages (
+      transfer_id TEXT PRIMARY KEY NOT NULL, conversation_id TEXT NOT NULL,
+      sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, file_name TEXT NOT NULL,
+      timestamp TEXT NOT NULL, status TEXT NOT NULL,
+      FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE
+    );
+    CREATE INDEX IF NOT EXISTS idx_file_messages_conversation_id ON file_messages(conversation_id);
     CREATE TABLE IF NOT EXISTS known_peers (
       device_id TEXT PRIMARY KEY NOT NULL, device_name TEXT NOT NULL,
       display_name TEXT NOT NULL, last_seen TEXT NOT NULL
@@ -193,6 +210,29 @@ export function clearConversationMessages(database: SQLiteDatabase, conversation
   conversationId = requiredText(conversationId, "conversationId", 255);
   const result = database.prepare("DELETE FROM messages WHERE conversation_id = ?").run(conversationId);
   return result.changes;
+}
+
+export function listFileMessages(database: SQLiteDatabase, conversationId: string): FileMessage[] {
+  conversationId = requiredText(conversationId, "conversationId", 255);
+  return database.prepare("SELECT transfer_id, conversation_id, sender_id, receiver_id, file_name, timestamp, status FROM file_messages WHERE conversation_id = ? ORDER BY rowid ASC").all(conversationId) as FileMessage[];
+}
+
+export function saveFileMessage(database: SQLiteDatabase, file: FileMessage): FileMessage {
+  database.prepare("INSERT OR REPLACE INTO file_messages (transfer_id, conversation_id, sender_id, receiver_id, file_name, timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
+    .run(file.transfer_id, file.conversation_id, file.sender_id, file.receiver_id, file.file_name, file.timestamp, file.status);
+  return file;
+}
+
+export function deleteFileMessage(database: SQLiteDatabase, transferId: string): boolean {
+  transferId = requiredText(transferId, "transferId", 255);
+  return database.prepare("DELETE FROM file_messages WHERE transfer_id = ?").run(transferId).changes > 0;
+}
+
+export function clearConversationFiles(database: SQLiteDatabase, conversationId: string): string[] {
+  conversationId = requiredText(conversationId, "conversationId", 255);
+  const files = database.prepare("SELECT transfer_id FROM file_messages WHERE conversation_id = ?").all(conversationId) as Array<{ transfer_id: string }>;
+  database.prepare("DELETE FROM file_messages WHERE conversation_id = ?").run(conversationId);
+  return files.map((file) => file.transfer_id);
 }
 
 export function saveReceivedMessage(database: SQLiteDatabase, message: Message): Message {

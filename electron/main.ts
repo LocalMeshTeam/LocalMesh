@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { clearConversationMessages, createConversation, createMessage, deleteMessage, ensureConversation, listConversations, listMessages, loadOrCreateIdentity, openDatabase, saveKnownPeer, saveReceivedMessage, updateMessageStatus } from "./database.js";
+import { clearConversationFiles, clearConversationMessages, createConversation, createMessage, deleteFileMessage, deleteMessage, ensureConversation, listConversations, listFileMessages, listMessages, loadOrCreateIdentity, openDatabase, saveFileMessage, saveKnownPeer, saveReceivedMessage, updateMessageStatus, type FileMessage } from "./database.js";
 import { DISCOVERY_PORT, getLocalAddresses, MULTICAST_ADDRESS, PeerDiscovery } from "./discovery.js";
 import { NetworkTransport, TRANSPORT_PORT } from "./transport.js";
 import { SecureIdentity } from "./security.js";
@@ -11,7 +11,7 @@ import { createFileChunk, createFileComplete, createFileOffer, decryptFileChunk,
 import { FileStorage } from "./storage.js";
 import type { ReceivedFilePacket } from "./transport.js";
 
-type FileProgress = { transfer_id: string; file_name?: string; transferred: number; total: number; status: "sending" | "receiving" | "complete" };
+type FileProgress = { transfer_id: string; file_name?: string; transferred: number; total: number; status: "sending" | "receiving" | "complete"; conversation_id?: string; sender_id?: string; receiver_id?: string };
 
 const currentDirectory = path.dirname(fileURLToPath(import.meta.url));
 const isDevelopment = !app.isPackaged;
@@ -46,7 +46,7 @@ app.whenReady().then(() => {
     const secureIdentity = new SecureIdentity(path.join(app.getPath("userData"), "security"));
     const trustedPeers = new TrustedPeerStore(trustedPeersPath(path.join(app.getPath("userData"), "security")));
     const fileStorage = new FileStorage(app.getPath("userData"));
-    const incomingTransfers = new Map<string, { device_id: string; signing_public_key: string; exchange_public_key: string; file_name: string; size: number; received: number }>();
+    const incomingTransfers = new Map<string, { device_id: string; signing_public_key: string; exchange_public_key: string; file_name: string; size: number; received: number; conversation_id: string }>();
     const outgoingTransfers = new Map<string, AbortController>();
     const notifyRenderer = (channel: "file-progress" | "file-received", payload: unknown): void => { for (const window of BrowserWindow.getAllWindows()) window.webContents.send(channel, payload); };
     function handleFilePacket(packet: ReceivedFilePacket, peer: { device_id: string; signing_public_key: string; exchange_public_key: string }): boolean {
@@ -54,22 +54,25 @@ app.whenReady().then(() => {
         if (packet.type === "file-offer") {
           if (!verifyFileOffer(packet, peer.signing_public_key)) throw new Error("Invalid file offer signature");
           fileStorage.createTransfer(packet.transfer_id, packet.file_name, packet.size, packet.checksum);
-          incomingTransfers.set(packet.transfer_id, { ...peer, file_name: packet.file_name, size: packet.size, received: 0 });
-          notifyRenderer("file-progress", { transfer_id: packet.transfer_id, file_name: packet.file_name, transferred: 0, total: packet.size, status: "receiving" } satisfies FileProgress);
+          const conversation = createConversation(database, peer.device_id);
+          incomingTransfers.set(packet.transfer_id, { ...peer, file_name: packet.file_name, size: packet.size, received: 0, conversation_id: conversation.conversation_id });
+          notifyRenderer("file-progress", { transfer_id: packet.transfer_id, file_name: packet.file_name, transferred: 0, total: packet.size, status: "receiving", conversation_id: conversation.conversation_id, sender_id: peer.device_id, receiver_id: identity.device_id } satisfies FileProgress);
         } else if (packet.type === "file-chunk") {
           const sender = incomingTransfers.get(packet.transfer_id);
           if (!sender) throw new Error("Unknown file transfer");
           const chunk = decryptFileChunk(secureIdentity, packet, sender.signing_public_key, sender.exchange_public_key);
           fileStorage.writeChunk(packet.transfer_id, packet.offset, chunk);
           sender.received += chunk.byteLength;
-          notifyRenderer("file-progress", { transfer_id: packet.transfer_id, file_name: sender.file_name, transferred: sender.received, total: sender.size, status: "receiving" } satisfies FileProgress);
+          notifyRenderer("file-progress", { transfer_id: packet.transfer_id, file_name: sender.file_name, transferred: sender.received, total: sender.size, status: "receiving", conversation_id: sender.conversation_id, sender_id: sender.device_id, receiver_id: identity.device_id } satisfies FileProgress);
         } else if (packet.type === "file-complete") {
           const sender = incomingTransfers.get(packet.transfer_id);
           if (!sender || !verifyFileComplete(packet, sender.signing_public_key)) throw new Error("Invalid file completion");
           fileStorage.finalize(packet.transfer_id);
           incomingTransfers.delete(packet.transfer_id);
-          notifyRenderer("file-progress", { transfer_id: packet.transfer_id, file_name: sender.file_name, transferred: sender.size, total: sender.size, status: "complete" } satisfies FileProgress);
-          notifyRenderer("file-received", { transfer_id: packet.transfer_id, file_name: sender.file_name, path: fileStorage.getPath(packet.transfer_id) });
+          const fileMessage: FileMessage = { transfer_id: packet.transfer_id, conversation_id: sender.conversation_id, sender_id: sender.device_id, receiver_id: identity.device_id, file_name: sender.file_name, timestamp: new Date().toISOString(), status: "received" };
+          saveFileMessage(database, fileMessage);
+          notifyRenderer("file-progress", { transfer_id: packet.transfer_id, file_name: sender.file_name, transferred: sender.size, total: sender.size, status: "complete", conversation_id: sender.conversation_id, sender_id: sender.device_id, receiver_id: identity.device_id } satisfies FileProgress);
+          notifyRenderer("file-received", { ...fileMessage, path: fileStorage.getPath(packet.transfer_id) });
           console.log(`Received file ${packet.transfer_id} from ${sender.device_id}`);
         }
         return true;
@@ -104,8 +107,10 @@ app.whenReady().then(() => {
       return createConversation(database, peerId, peer?.device_name || "", peer?.display_name || "");
     });
     ipcMain.handle("list-messages", (_event, conversationId: string) => listMessages(database, conversationId));
+    ipcMain.handle("list-file-messages", (_event, conversationId: string) => listFileMessages(database, conversationId));
     ipcMain.handle("delete-message", (_event, messageId: string) => deleteMessage(database, messageId));
-    ipcMain.handle("clear-conversation", (_event, conversationId: string) => clearConversationMessages(database, conversationId));
+    ipcMain.handle("delete-file", (_event, transferId: string) => { fileStorage.remove(transferId); return deleteFileMessage(database, transferId); });
+    ipcMain.handle("clear-conversation", (_event, conversationId: string) => { const transferIds = clearConversationFiles(database, conversationId); for (const transferId of transferIds) fileStorage.remove(transferId); return clearConversationMessages(database, conversationId); });
     ipcMain.handle("choose-and-send-file", async (_event, conversationId: string) => {
       const conversation = listConversations(database).find((item) => item.conversation_id === conversationId);
       if (!conversation) throw new Error("Conversation not found");
@@ -119,17 +124,18 @@ app.whenReady().then(() => {
       outgoingTransfers.set(transferId, controller);
       const offer = createFileOffer(identity, secureIdentity, transferId, peer.device_id, path.basename(selection.filePaths[0]), content);
       fileStorage.createTransfer(transferId, offer.file_name, offer.size, offer.checksum);
-      notifyRenderer("file-progress", { transfer_id: transferId, file_name: offer.file_name, transferred: 0, total: offer.size, status: "sending" } satisfies FileProgress);
+      notifyRenderer("file-progress", { transfer_id: transferId, file_name: offer.file_name, transferred: 0, total: offer.size, status: "sending", conversation_id: conversation.conversation_id, sender_id: identity.device_id, receiver_id: peer.device_id } satisfies FileProgress);
       await lanTransport.sendFilePacket(peer, offer);
       const chunkSize = 64 * 1024;
       for (let offset = 0; offset < content.byteLength; offset += chunkSize) {
         if (controller.signal.aborted) throw new Error("File transfer cancelled");
         await lanTransport.sendFilePacket(peer, createFileChunk(secureIdentity, transferId, offset, content.subarray(offset, offset + chunkSize), peer.exchange_public_key));
-        notifyRenderer("file-progress", { transfer_id: transferId, file_name: offer.file_name, transferred: Math.min(offset + chunkSize, content.byteLength), total: content.byteLength, status: "sending" } satisfies FileProgress);
+        notifyRenderer("file-progress", { transfer_id: transferId, file_name: offer.file_name, transferred: Math.min(offset + chunkSize, content.byteLength), total: content.byteLength, status: "sending", conversation_id: conversation.conversation_id, sender_id: identity.device_id, receiver_id: peer.device_id } satisfies FileProgress);
       }
       await lanTransport.sendFilePacket(peer, createFileComplete(secureIdentity, transferId, offer.checksum));
       outgoingTransfers.delete(transferId);
-      notifyRenderer("file-progress", { transfer_id: transferId, file_name: offer.file_name, transferred: offer.size, total: offer.size, status: "complete" } satisfies FileProgress);
+      saveFileMessage(database, { transfer_id: transferId, conversation_id: conversation.conversation_id, sender_id: identity.device_id, receiver_id: peer.device_id, file_name: offer.file_name, timestamp: offer.timestamp, status: "sent" });
+      notifyRenderer("file-progress", { transfer_id: transferId, file_name: offer.file_name, transferred: offer.size, total: offer.size, status: "complete", conversation_id: conversation.conversation_id, sender_id: identity.device_id, receiver_id: peer.device_id } satisfies FileProgress);
       return offer;
     });
     ipcMain.handle("cancel-file-transfer", (_event, transferId: string) => {
