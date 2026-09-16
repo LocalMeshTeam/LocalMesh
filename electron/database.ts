@@ -146,6 +146,8 @@ export function ensureConversation(database: SQLiteDatabase, conversationId: str
   createdAt = requiredText(createdAt, "createdAt", 64);
   const existing = database.prepare("SELECT conversation_id, peer_id, peer_name, peer_display_name, created_at, updated_at FROM conversations WHERE conversation_id = ?").get(conversationId) as Conversation | undefined;
   if (existing) return existing;
+  const peerConversation = database.prepare("SELECT conversation_id, peer_id, peer_name, peer_display_name, created_at, updated_at FROM conversations WHERE peer_id = ? ORDER BY updated_at DESC LIMIT 1").get(peerId) as Conversation | undefined;
+  if (peerConversation) return peerConversation;
   database.prepare("INSERT INTO conversations (conversation_id, peer_id, peer_name, peer_display_name, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?)")
     .run(conversationId, peerId, "", "", createdAt, createdAt);
   return { conversation_id: conversationId, peer_id: peerId, peer_name: "", peer_display_name: "", created_at: createdAt, updated_at: createdAt };

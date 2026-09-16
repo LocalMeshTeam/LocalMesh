@@ -27,6 +27,8 @@ test("database persists identity, conversations, messages, and statuses", () => 
     assert.equal(deleteMessage(database, secondMessage.message_id), false);
 
     const incomingConversation = ensureConversation(database, "incoming-conversation", "peer-2", new Date().toISOString());
+    const samePeerConversation = ensureConversation(database, "different-conversation-id", "peer-2", new Date().toISOString());
+    assert.equal(samePeerConversation.conversation_id, incomingConversation.conversation_id);
     const incoming = { ...message, message_id: "incoming-1", conversation_id: incomingConversation.conversation_id, sender_id: "peer-2", receiver_id: identity.device_id, status: "pending" };
     assert.equal(saveReceivedMessage(database, incoming).status, "delivered");
     assert.equal(saveReceivedMessage(database, incoming).message_id, "incoming-1");

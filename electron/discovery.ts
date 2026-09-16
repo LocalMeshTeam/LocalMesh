@@ -71,7 +71,13 @@ export class PeerDiscovery {
     this.started = true;
     this.socket.bind(DISCOVERY_PORT, "0.0.0.0", () => {
       try {
-        this.socket.addMembership(MULTICAST_ADDRESS);
+        this.socket.setBroadcast(true);
+        const addresses = getLocalAddresses();
+        if (addresses.length === 0) this.socket.addMembership(MULTICAST_ADDRESS);
+        for (const address of addresses) {
+          try { this.socket.addMembership(MULTICAST_ADDRESS, address); }
+          catch (error) { console.error(`Failed to join discovery multicast on ${address}:`, error); }
+        }
         this.socket.setMulticastTTL(1);
         this.announce();
         this.announcementTimer = setInterval(() => this.announce(), ANNOUNCEMENT_INTERVAL_MS);
@@ -107,8 +113,9 @@ export class PeerDiscovery {
       ...this.identity,
     };
     const message = Buffer.from(JSON.stringify(packet));
-    this.socket.send(message, DISCOVERY_PORT, MULTICAST_ADDRESS, (error) => {
-      if (error) console.error("Failed to announce LocalMesh peer:", error);
+    const targets = [MULTICAST_ADDRESS, "255.255.255.255"];
+    for (const target of targets) this.socket.send(message, DISCOVERY_PORT, target, (error) => {
+      if (error) console.error(`Failed to announce LocalMesh peer to ${target}:`, error);
     });
   }
 

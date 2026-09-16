@@ -80,8 +80,8 @@ app.whenReady().then(() => {
     console.log(`Local IPv4 addresses: ${getLocalAddresses().join(", ") || "none detected"}`);
     const lanTransport = new NetworkTransport(identity, secureIdentity, (message) => {
       try {
-        ensureConversation(database, message.conversation_id, message.sender_id, message.timestamp);
-        saveReceivedMessage(database, message);
+        const conversation = ensureConversation(database, message.conversation_id, message.sender_id, message.timestamp);
+        saveReceivedMessage(database, { ...message, conversation_id: conversation.conversation_id });
       } catch (error) {
         console.error("Failed to persist received message:", error);
       }
