@@ -155,7 +155,10 @@ export function ensureConversation(database: SQLiteDatabase, conversationId: str
 
 export function listMessages(database: SQLiteDatabase, conversationId: string): Message[] {
   conversationId = requiredText(conversationId, "conversationId", 255);
-  return database.prepare("SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, status FROM messages WHERE conversation_id = ? ORDER BY timestamp ASC")
+  // Order by SQLite insertion order, not remote wall-clock timestamps. Two
+  // PCs can have different clocks, which otherwise makes messages jump up or
+  // down when a delayed message arrives.
+  return database.prepare("SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, status FROM messages WHERE conversation_id = ? ORDER BY rowid ASC")
     .all(conversationId) as Message[];
 }
 
