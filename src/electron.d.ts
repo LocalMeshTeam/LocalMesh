@@ -36,6 +36,8 @@ interface Window {
     listConversations(): Promise<Conversation[]>;
     createConversation(peerId: string): Promise<Conversation>;
     listMessages(conversationId: string): Promise<Message[]>;
+    deleteMessage(messageId: string): Promise<boolean>;
+    clearConversation(conversationId: string): Promise<number>;
     createMessage(conversationId: string, content: string): Promise<Message>;
     chooseAndSendFile(conversationId: string): Promise<unknown>;
     cancelFileTransfer(transferId: string): Promise<boolean>;

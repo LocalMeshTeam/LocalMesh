@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { createConversation, createMessage, ensureConversation, listConversations, listMessages, loadOrCreateIdentity, openDatabase, saveKnownPeer, saveReceivedMessage, updateMessageStatus } from "./database.js";
+import { clearConversationMessages, createConversation, createMessage, deleteMessage, ensureConversation, listConversations, listMessages, loadOrCreateIdentity, openDatabase, saveKnownPeer, saveReceivedMessage, updateMessageStatus } from "./database.js";
 import { DISCOVERY_PORT, getLocalAddresses, MULTICAST_ADDRESS, PeerDiscovery } from "./discovery.js";
 import { NetworkTransport, TRANSPORT_PORT } from "./transport.js";
 import { SecureIdentity } from "./security.js";
@@ -104,6 +104,8 @@ app.whenReady().then(() => {
       return createConversation(database, peerId, peer?.device_name || "", peer?.display_name || "");
     });
     ipcMain.handle("list-messages", (_event, conversationId: string) => listMessages(database, conversationId));
+    ipcMain.handle("delete-message", (_event, messageId: string) => deleteMessage(database, messageId));
+    ipcMain.handle("clear-conversation", (_event, conversationId: string) => clearConversationMessages(database, conversationId));
     ipcMain.handle("choose-and-send-file", async (_event, conversationId: string) => {
       const conversation = listConversations(database).find((item) => item.conversation_id === conversationId);
       if (!conversation) throw new Error("Conversation not found");

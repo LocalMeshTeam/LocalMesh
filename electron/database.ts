@@ -178,6 +178,18 @@ export function updateMessageStatus(database: SQLiteDatabase, messageId: string,
   database.prepare("UPDATE messages SET status = ? WHERE message_id = ?").run(status, messageId);
 }
 
+export function deleteMessage(database: SQLiteDatabase, messageId: string): boolean {
+  messageId = requiredText(messageId, "messageId", 255);
+  const result = database.prepare("DELETE FROM messages WHERE message_id = ?").run(messageId);
+  return result.changes > 0;
+}
+
+export function clearConversationMessages(database: SQLiteDatabase, conversationId: string): number {
+  conversationId = requiredText(conversationId, "conversationId", 255);
+  const result = database.prepare("DELETE FROM messages WHERE conversation_id = ?").run(conversationId);
+  return result.changes;
+}
+
 export function saveReceivedMessage(database: SQLiteDatabase, message: Message): Message {
   const conversation = database.prepare("SELECT conversation_id FROM conversations WHERE conversation_id = ?").get(message.conversation_id) as { conversation_id: string } | undefined;
   if (!conversation) throw new Error("Conversation not found for received message");

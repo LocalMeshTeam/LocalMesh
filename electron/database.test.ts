@@ -3,7 +3,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { test } from "node:test";
-import { createConversation, createMessage, ensureConversation, listMessages, loadOrCreateIdentity, openDatabase, saveReceivedMessage, updateMessageStatus } from "./database.js";
+import { clearConversationMessages, createConversation, createMessage, deleteMessage, ensureConversation, listMessages, loadOrCreateIdentity, openDatabase, saveReceivedMessage, updateMessageStatus } from "./database.js";
 
 test("database persists identity, conversations, messages, and statuses", () => {
   const directory = mkdtempSync(path.join(tmpdir(), "localmesh-database-"));
@@ -19,6 +19,12 @@ test("database persists identity, conversations, messages, and statuses", () => 
     assert.equal(message.status, "pending");
     updateMessageStatus(database, message.message_id, "sent");
     assert.equal(listMessages(database, conversation.conversation_id)[0]?.status, "sent");
+    assert.equal(deleteMessage(database, message.message_id), true);
+    assert.equal(deleteMessage(database, message.message_id), false);
+    const secondMessage = createMessage(database, conversation.conversation_id, identity.device_id, "second");
+    assert.equal(clearConversationMessages(database, conversation.conversation_id), 1);
+    assert.equal(listMessages(database, conversation.conversation_id).length, 0);
+    assert.equal(deleteMessage(database, secondMessage.message_id), false);
 
     const incomingConversation = ensureConversation(database, "incoming-conversation", "peer-2", new Date().toISOString());
     const incoming = { ...message, message_id: "incoming-1", conversation_id: incomingConversation.conversation_id, sender_id: "peer-2", receiver_id: identity.device_id, status: "pending" };
@@ -37,6 +43,8 @@ test("database rejects invalid message input", () => {
   try {
     assert.throws(() => createConversation(database, "   "), /peerId is required/);
     assert.throws(() => createMessage(database, "missing", "sender", "hello"), /Conversation not found/);
+    assert.throws(() => deleteMessage(database, "   "), /messageId is required/);
+    assert.throws(() => clearConversationMessages(database, "   "), /conversationId is required/);
   } finally {
     database.close();
     rmSync(directory, { recursive: true, force: true });
