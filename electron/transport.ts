@@ -19,10 +19,12 @@ export class NetworkTransport {
   // Inbound sockets are owned by the peer's send direction. Keep outbound
   // sockets separate so replies always use our own client connection.
   private readonly outboundSockets = new Map<string, Socket>();
+  private readonly inboundSockets = new Map<string, Socket>();
+  private readonly activeSockets = new Set<Socket>();
   private readonly buffers = new Map<Socket, string>();
   private readonly socketPeers = new Map<Socket, { device_id: string; device_name: string; display_name: string; signing_public_key: string; exchange_public_key: string }>();
   private readonly pinnedSigningKeys = new Map<string, string>();
-  private readonly pendingAcks = new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
+  private readonly pendingAcks = new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: NodeJS.Timeout; socket: Socket }>();
   private readonly pendingFileAcks = new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
   private started = false;
 
@@ -99,54 +101,74 @@ export class NetworkTransport {
 
   private sendAttempt(peer: PeerAddress, message: Message): Promise<void> {
     return new Promise((resolve, reject) => {
-      const existingSocket = this.outboundSockets.get(peer.device_id);
-      if (existingSocket && !existingSocket.destroyed && existingSocket.writable) {
-        this.waitForAck(message.message_id, resolve, reject);
-        this.write(existingSocket, this.messagePacket(message, peer.exchange_public_key));
+      const inboundSocket = this.inboundSockets.get(peer.device_id);
+      if (inboundSocket && !inboundSocket.destroyed && inboundSocket.writable) {
+        this.waitForAck(message.message_id, resolve, reject, inboundSocket);
+        this.write(inboundSocket, this.messagePacket(message, peer.exchange_public_key));
         return;
       }
-
       const socket = net.createConnection({ host: peer.address, port: peer.transport_port });
       let connected = false;
       socket.once("connect", () => {
         connected = true;
         this.attachSocket(socket);
-        // Reuse outbound connections per peer. Otherwise every message opens
-        // another socket and concurrent handshakes can replace peer state.
-        this.outboundSockets.set(peer.device_id, socket);
+        this.socketPeers.set(socket, { device_id: peer.device_id, device_name: "", display_name: "", signing_public_key: peer.signing_public_key, exchange_public_key: peer.exchange_public_key });
         this.write(socket, this.helloPacket());
-        this.waitForAck(message.message_id, resolve, reject);
+        this.waitForAck(message.message_id, resolve, reject, socket);
         this.write(socket, this.messagePacket(message, peer.exchange_public_key));
       });
       socket.once("error", (error) => {
         if (!connected) reject(error);
+        else this.rejectPendingAck(message.message_id, error);
       });
     });
   }
 
-  private waitForAck(messageId: string, resolve: () => void, reject: (error: Error) => void): void {
+  private waitForAck(messageId: string, resolve: () => void, reject: (error: Error) => void, socket: Socket): void {
     const timer = setTimeout(() => {
+      const pending = this.pendingAcks.get(messageId);
+      if (!pending) return;
       this.pendingAcks.delete(messageId);
+      if (!socket.destroyed) socket.destroy();
       reject(new Error(`Timed out waiting for acknowledgement of ${messageId}`));
     }, ACK_TIMEOUT_MS);
-    this.pendingAcks.set(messageId, { resolve, reject, timer });
+    this.pendingAcks.set(messageId, { resolve, reject, timer, socket });
+  }
+
+  private rejectPendingAck(messageId: string, error: Error): void {
+    const pending = this.pendingAcks.get(messageId);
+    if (!pending) return;
+    clearTimeout(pending.timer);
+    this.pendingAcks.delete(messageId);
+    pending.reject(error);
   }
 
   public stop(): void {
     if (!this.started) return;
     this.started = false;
-    for (const socket of this.outboundSockets.values()) socket.destroy();
+    for (const socket of this.activeSockets) socket.destroy();
     this.outboundSockets.clear();
+    this.inboundSockets.clear();
+    this.activeSockets.clear();
     this.server.close();
   }
 
   private attachSocket(socket: Socket): void {
+    this.activeSockets.add(socket);
     this.buffers.set(socket, "");
     socket.on("data", (data) => this.handleData(socket, data.toString()));
     socket.on("close", () => {
       this.buffers.delete(socket);
       this.socketPeers.delete(socket);
+      this.activeSockets.delete(socket);
       for (const [deviceId, peerSocket] of this.outboundSockets) if (peerSocket === socket) this.outboundSockets.delete(deviceId);
+      for (const [deviceId, peerSocket] of this.inboundSockets) if (peerSocket === socket) this.inboundSockets.delete(deviceId);
+      for (const [messageId, pending] of this.pendingAcks) {
+        if (pending.socket !== socket) continue;
+        clearTimeout(pending.timer);
+        this.pendingAcks.delete(messageId);
+        pending.reject(new Error(`Connection closed before acknowledgement of ${messageId}`));
+      }
     });
     socket.on("error", (error) => console.error("LAN transport connection error:", error));
   }
@@ -182,6 +204,7 @@ export class NetworkTransport {
       }
       this.pinnedSigningKeys.set(packet.device_id, packet.signing_public_key);
       this.socketPeers.set(socket, { device_id: packet.device_id, device_name: packet.device_name, display_name: packet.display_name, signing_public_key: packet.signing_public_key, exchange_public_key: packet.exchange_public_key });
+      this.inboundSockets.set(packet.device_id, socket);
       this.onPeerIdentity?.({ device_id: packet.device_id, device_name: packet.device_name, display_name: packet.display_name, last_seen: new Date().toISOString() });
       return;
     }
