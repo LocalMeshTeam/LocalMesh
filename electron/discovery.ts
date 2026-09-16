@@ -57,6 +57,7 @@ export function parseDiscoveryPacket(message: Buffer | string, localDeviceId: st
 export class PeerDiscovery {
   private readonly socket = dgram.createSocket({ type: "udp4", reuseAddr: true });
   private readonly peers = new Map<string, LocalPeer>();
+  private readonly discoveryResponseTimes = new Map<string, number>();
   private announcementTimer: NodeJS.Timeout | undefined;
   private cleanupTimer: NodeJS.Timeout | undefined;
   private started = false;
@@ -104,6 +105,18 @@ export class PeerDiscovery {
   }
 
   private announce(): void {
+    const message = this.discoveryMessage();
+    const targets = [MULTICAST_ADDRESS, "255.255.255.255"];
+    for (const target of targets) this.sendAnnouncement(message, target);
+  }
+
+  private sendAnnouncement(message: Buffer, address: string): void {
+    this.socket.send(message, DISCOVERY_PORT, address, (error) => {
+      if (error) console.error(`Failed to announce LocalMesh peer to ${address}:`, error);
+    });
+  }
+
+  private discoveryMessage(): Buffer {
     const packet: DiscoveryPacket = {
       type: "localmesh-discovery",
       version: PROTOCOL_VERSION,
@@ -112,16 +125,19 @@ export class PeerDiscovery {
       exchange_public_key: this.secureIdentity.exchangePublicKey,
       ...this.identity,
     };
-    const message = Buffer.from(JSON.stringify(packet));
-    const targets = [MULTICAST_ADDRESS, "255.255.255.255"];
-    for (const target of targets) this.socket.send(message, DISCOVERY_PORT, target, (error) => {
-      if (error) console.error(`Failed to announce LocalMesh peer to ${target}:`, error);
-    });
+    return Buffer.from(JSON.stringify(packet));
   }
 
   private handleMessage(message: Buffer, address: string): void {
     const peer = parseDiscoveryPacket(message, this.identity.device_id, address);
     if (!peer) return;
+    // Multicast/broadcast delivery can be asymmetric on Windows networks.
+    // Reply directly to the announcing host so both devices learn each other.
+    const now = Date.now();
+    if (now - (this.discoveryResponseTimes.get(peer.device_id) ?? 0) >= ANNOUNCEMENT_INTERVAL_MS) {
+      this.discoveryResponseTimes.set(peer.device_id, now);
+      this.sendAnnouncement(this.discoveryMessage(), address);
+    }
     const isNewPeer = !this.peers.has(peer.device_id);
     this.peers.set(peer.device_id, peer);
     this.onPeerDiscovered?.(peer);
