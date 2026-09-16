@@ -82,3 +82,37 @@ test("transport keeps independent connections for multiple peers", async () => {
     directories.forEach((directory) => rmSync(directory, { recursive: true, force: true }));
   }
 });
+
+test("transport handles simultaneous bidirectional bursts", async () => {
+  const firstDirectory = mkdtempSync(path.join(tmpdir(), "localmesh-transport-burst-a-"));
+  const secondDirectory = mkdtempSync(path.join(tmpdir(), "localmesh-transport-burst-b-"));
+  const firstIdentity: DeviceIdentity = { device_id: "burst-a", device_name: "PC-A", display_name: "A", created_at: new Date().toISOString() };
+  const secondIdentity: DeviceIdentity = { device_id: "burst-b", device_name: "PC-B", display_name: "B", created_at: new Date().toISOString() };
+  const firstSecurity = new SecureIdentity(firstDirectory);
+  const secondSecurity = new SecureIdentity(secondDirectory);
+  const receivedByFirst: Message[] = [];
+  const receivedBySecond: Message[] = [];
+  const firstTransport = new NetworkTransport(firstIdentity, firstSecurity, (message) => receivedByFirst.push(message), () => undefined, 45520, "127.0.0.1");
+  const secondTransport = new NetworkTransport(secondIdentity, secondSecurity, (message) => receivedBySecond.push(message), () => undefined, 45521, "127.0.0.1");
+  const firstPeer = { device_id: secondIdentity.device_id, address: "127.0.0.1", transport_port: 45521, signing_public_key: secondSecurity.signingPublicKey, exchange_public_key: secondSecurity.exchangePublicKey };
+  const secondPeer = { device_id: firstIdentity.device_id, address: "127.0.0.1", transport_port: 45520, signing_public_key: firstSecurity.signingPublicKey, exchange_public_key: firstSecurity.exchangePublicKey };
+  try {
+    firstTransport.start();
+    secondTransport.start();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    const makeMessage = (sender: DeviceIdentity, receiver: DeviceIdentity, index: number): Message => ({ message_id: `${sender.device_id}-${index}`, conversation_id: `conversation-${sender.device_id}`, sender_id: sender.device_id, receiver_id: receiver.device_id, content: `message ${index}`, timestamp: new Date().toISOString(), status: "pending" });
+    await Promise.all([
+      ...Array.from({ length: 10 }, (_, index) => firstTransport.sendMessage(firstPeer, makeMessage(firstIdentity, secondIdentity, index))),
+      ...Array.from({ length: 10 }, (_, index) => secondTransport.sendMessage(secondPeer, makeMessage(secondIdentity, firstIdentity, index))),
+    ]);
+    assert.equal(receivedByFirst.length, 10);
+    assert.equal(receivedBySecond.length, 10);
+    assert.equal(new Set(receivedByFirst.map((message) => message.message_id)).size, 10);
+    assert.equal(new Set(receivedBySecond.map((message) => message.message_id)).size, 10);
+  } finally {
+    firstTransport.stop();
+    secondTransport.stop();
+    rmSync(firstDirectory, { recursive: true, force: true });
+    rmSync(secondDirectory, { recursive: true, force: true });
+  }
+});
