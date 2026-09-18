@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { closeSync, existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from "node:fs";
 import path from "node:path";
 
 const MAX_FILE_SIZE = 1024 * 1024 * 1024;
@@ -54,9 +54,19 @@ export class FileStorage {
     return this.dataPath(fileId);
   }
 
+  public getOpenPath(fileId: string): string {
+    const metadata = this.readMetadata(fileId);
+    const extension = path.extname(metadata.file_name).toLowerCase();
+    const openPath = path.join(this.directory, `${fileId}${extension}`);
+    if (!existsSync(openPath)) copyFileSync(this.dataPath(fileId), openPath);
+    return openPath;
+  }
+
   public remove(fileId: string): void {
     if (!/^[a-zA-Z0-9-]{1,128}$/.test(fileId)) return;
-    for (const filePath of [this.dataPath(fileId), this.metadataPath(fileId)]) if (existsSync(filePath)) unlinkSync(filePath);
+    const metadataPath = this.metadataPath(fileId);
+    const extension = existsSync(metadataPath) ? path.extname((JSON.parse(readFileSync(metadataPath, "utf8")) as FileTransferMetadata).file_name).toLowerCase() : "";
+    for (const filePath of [this.dataPath(fileId), path.join(this.directory, `${fileId}${extension}`), metadataPath]) if (existsSync(filePath)) unlinkSync(filePath);
   }
 
   private readMetadata(fileId: string): FileTransferMetadata {

@@ -144,7 +144,11 @@ app.whenReady().then(() => {
       fileStorage.remove(transferId);
       return true;
     });
-    ipcMain.handle("open-received-file", (_event, transferId: string) => shell.openPath(fileStorage.getPath(transferId)));
+    ipcMain.handle("open-received-file", async (_event, transferId: string) => {
+      const error = await shell.openPath(fileStorage.getOpenPath(transferId));
+      if (error) throw new Error(error);
+      return "";
+    });
     ipcMain.handle("create-message", (_event, conversationId: string, content: string) => {
       const identity = loadOrCreateIdentity(database);
       const message = createMessage(database, conversationId, identity.device_id, content);

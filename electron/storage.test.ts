@@ -16,6 +16,7 @@ test("file storage writes chunks and verifies checksum", () => {
     storage.writeChunk("file-1", 0, content.subarray(0, 9));
     storage.writeChunk("file-1", 9, content.subarray(9));
     assert.deepEqual(storage.read("file-1"), content);
+    assert.match(storage.getOpenPath("file-1"), /file-1\.txt$/);
   } finally { rmSync(directory, { recursive: true, force: true }); }
 });
 
