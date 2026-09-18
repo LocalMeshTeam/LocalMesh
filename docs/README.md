@@ -40,3 +40,5 @@ bun run package:win
 The initial desktop chat and file-transfer experience is implemented. The main remaining validation is testing two real computers on the same LAN. Mobile clients, macOS/Linux installers, code signing, and advanced transfer history are future work.
 
 See [`ARCHITECTURE.md`](ARCHITECTURE.md), [`ROADMAP.md`](ROADMAP.md), and [`TESTING.md`](TESTING.md) for detailed information.
+
+For people installing the Windows application from a release, see [`USER_GUIDE.md`](USER_GUIDE.md).

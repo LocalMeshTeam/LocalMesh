@@ -6,13 +6,23 @@ LocalMesh is a desktop application for private communication over a local Wi-Fi,
 
 The Windows desktop application, chat UI, peer discovery, encrypted messaging, file transfer, installer, automated tests, CI, and Windows release pipeline are implemented. Real two-computer LAN testing is still required before production release. Android and iOS clients are not included.
 
-## User installation
+## User installation (Windows)
 
-Download the latest Windows installer from:
+Download the latest Windows installer from the **Assets** section of a GitHub Release:
 
 https://github.com/LocalMeshTeam/LocalMesh/releases
 
-Install `LocalMesh Setup <version>.exe`, open LocalMesh on two computers, and connect both computers to the same local network. Trust the discovered peer, select Chat, then send messages or files.
+On each Windows computer:
+
+1. Download and run `LocalMesh Setup <version>.exe`.
+2. Allow LocalMesh through Windows Firewall when Windows asks. Choose **Private networks**.
+3. Open LocalMesh on both computers and connect them to the same Wi-Fi, Ethernet network, or compatible mobile hotspot.
+4. Wait for the other computer to appear under **Nearby devices**. If it does not appear, click **Rescan devices**.
+5. Click **Trust**, open **Chat**, and send messages or files.
+
+The installer includes the application and its runtime dependencies. Users do not need Bun, Node.js, the source code, or a separate database installation. LocalMesh stores its database and security identity in each user's Windows application-data folder.
+
+If devices cannot see each other, the network must allow multicast discovery and local device-to-device traffic. The app uses UDP port `45454` for discovery and TCP port `45455` for messages and files. See [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) for firewall troubleshooting.
 
 ## Developer setup
 
