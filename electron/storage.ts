@@ -54,6 +54,10 @@ export class FileStorage {
     return this.dataPath(fileId);
   }
 
+  public getFileName(fileId: string): string {
+    return this.readMetadata(fileId).file_name;
+  }
+
   public getOpenPath(fileId: string): string {
     const metadata = this.readMetadata(fileId);
     const extension = path.extname(metadata.file_name).toLowerCase();

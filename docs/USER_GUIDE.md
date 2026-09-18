@@ -39,6 +39,10 @@ Do not expose these ports to the Public network unless you understand the securi
 
 **Network details** shows the discovery and transport ports for troubleshooting. Most users do not need to change anything there.
 
+## Received files
+
+After a file finishes transferring, the receiver can use **Open** to open the locally stored copy or **Download** to choose a folder and save a copy with the original filename and extension. The download dialog works without internet because it copies the file from LocalMesh's local storage. The sender can go offline after the transfer has completed.
+
 ## Data and security
 
 Messages, conversations, files, and security identity data are stored locally on each computer. Trusting a peer approves its signing key for communication. Revoke trust if a previously trusted device should no longer communicate with this installation.

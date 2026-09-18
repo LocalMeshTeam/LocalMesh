@@ -1,5 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
-import { readFileSync } from "node:fs";
+import { copyFileSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { clearConversationFiles, clearConversationMessages, createConversation, createMessage, deleteConversation, deleteFileMessage, deleteMessage, ensureConversation, listConversations, listFileMessages, listMessages, loadOrCreateIdentity, openDatabase, saveFileMessage, saveKnownPeer, saveReceivedMessage, updateMessageStatus, type FileMessage } from "./database.js";
@@ -149,6 +149,17 @@ app.whenReady().then(() => {
       const error = await shell.openPath(fileStorage.getOpenPath(transferId));
       if (error) throw new Error(error);
       return "";
+    });
+    ipcMain.handle("download-received-file", async (_event, transferId: string) => {
+      const fileName = fileStorage.getFileName(transferId);
+      const selection = await dialog.showSaveDialog({
+        title: "Save received file",
+        defaultPath: path.join(app.getPath("downloads"), fileName),
+        buttonLabel: "Save",
+      });
+      if (selection.canceled || !selection.filePath) return false;
+      copyFileSync(fileStorage.getPath(transferId), selection.filePath);
+      return true;
     });
     ipcMain.handle("create-message", (_event, conversationId: string, content: string) => {
       const identity = loadOrCreateIdentity(database);

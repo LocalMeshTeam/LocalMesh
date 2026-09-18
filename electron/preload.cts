@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld("localmesh", {
   chooseAndSendFile: (conversationId: string) => ipcRenderer.invoke("choose-and-send-file", conversationId),
   cancelFileTransfer: (transferId: string) => ipcRenderer.invoke("cancel-file-transfer", transferId),
   openReceivedFile: (transferId: string) => ipcRenderer.invoke("open-received-file", transferId),
+  downloadReceivedFile: (transferId: string) => ipcRenderer.invoke("download-received-file", transferId),
   listTrustedPeers: () => ipcRenderer.invoke("list-trusted-peers"),
   trustPeer: (deviceId: string) => ipcRenderer.invoke("trust-peer", deviceId),
   revokePeer: (deviceId: string) => ipcRenderer.invoke("revoke-peer", deviceId),

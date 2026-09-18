@@ -46,6 +46,7 @@ interface Window {
     chooseAndSendFile(conversationId: string): Promise<unknown>;
     cancelFileTransfer(transferId: string): Promise<boolean>;
     openReceivedFile(transferId: string): Promise<string>;
+    downloadReceivedFile(transferId: string): Promise<boolean>;
     listTrustedPeers(): Promise<TrustedPeer[]>;
     trustPeer(deviceId: string): Promise<TrustedPeer>;
     revokePeer(deviceId: string): Promise<void>;
