@@ -3,7 +3,7 @@
   "description": "Offline LAN communication platform for desktop devices",
   "author": "Diksh Jaswal",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.1.1",
   "type": "module",
   "main": "dist-electron/main.js",
   "packageManager": "bun@1.4.0",
