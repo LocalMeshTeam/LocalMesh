@@ -1,6 +1,6 @@
-# LocalMesh Architecture
+# MeshLink Architecture
 
-This document explains how the LocalMesh files connect and how a request moves through the application.
+This document explains how the MeshLink files connect and how a request moves through the application.
 
 See [`ROADMAP.md`](ROADMAP.md) for completed phases and upcoming work.
 
@@ -31,7 +31,7 @@ electron/main.ts
 - `electron/preload.cts` exposes the safe, context-isolated IPC API.
 - `electron/main.ts` starts Electron, creates the window, and registers IPC handlers.
 - `electron/database.ts` owns SQLite, migrations, and device identity persistence.
-- `electron/discovery.ts` announces the local device over UDP multicast, tracks nearby LocalMesh peers in memory, and reports network constants.
+- `electron/discovery.ts` announces the local device over UDP multicast, tracks nearby MeshLink peers in memory, and reports network constants.
 - `electron/trust.ts` persists trusted peer public keys and exposes fingerprint-based authorization state.
 - `electron/security.ts` stores persistent signing/key-exchange keys and provides cryptographic identity helpers.
 - `vite.config.ts` serves and builds the renderer on port `1420`.

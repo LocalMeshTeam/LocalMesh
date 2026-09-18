@@ -1,6 +1,6 @@
-# LocalMesh Project Roadmap
+# MeshLink Project Roadmap
 
-This document tracks what LocalMesh has completed and what remains. The backend foundation is stable and the initial frontend chat experience is implemented. Real two-device LAN validation is still pending.
+This document tracks what MeshLink has completed and what remains. The backend foundation is stable and the initial frontend chat experience is implemented. Real two-device LAN validation is still pending.
 
 ## Completed
 

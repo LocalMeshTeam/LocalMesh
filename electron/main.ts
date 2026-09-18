@@ -20,7 +20,8 @@ function createWindow(): void {
   const window = new BrowserWindow({
     width: 800,
     height: 600,
-    title: "LocalMesh",
+    title: "MeshLink",
+    icon: path.join(currentDirectory, "../build/icon.svg"),
     webPreferences: {
       preload: path.join(currentDirectory, "preload.cjs"),
       contextIsolation: true,
@@ -78,7 +79,7 @@ app.whenReady().then(() => {
         return true;
       } catch (error) { console.error(`Failed to process file transfer ${packet.transfer_id}:`, error); return false; }
     }
-    console.log(`LocalMesh device: ${identity.device_name} (${identity.display_name})`);
+    console.log(`MeshLink device: ${identity.device_name} (${identity.display_name})`);
     console.log(`Security identity fingerprint: ${secureIdentity.fingerprint}`);
     console.log(`Local IPv4 addresses: ${getLocalAddresses().join(", ") || "none detected"}`);
     const lanTransport = new NetworkTransport(identity, secureIdentity, (message) => {
@@ -92,7 +93,7 @@ app.whenReady().then(() => {
     lanTransport.start();
     const peerDiscovery = new PeerDiscovery(identity, secureIdentity, (peer) => saveKnownPeer(database, peer));
     peerDiscovery.start();
-    ipcMain.handle("get-app-info", () => "LocalMesh Electron engine is running.");
+    ipcMain.handle("get-app-info", () => "MeshLink Electron engine is running.");
     ipcMain.handle("get-device-identity", () => identity);
     ipcMain.handle("get-network-info", () => ({
       addresses: getLocalAddresses(),
@@ -195,7 +196,7 @@ app.whenReady().then(() => {
       database.close();
     });
   } catch (error) {
-    console.error("Failed to initialize LocalMesh:", error);
+    console.error("Failed to initialize MeshLink:", error);
     app.quit();
   }
 

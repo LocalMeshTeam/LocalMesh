@@ -1,5 +1,5 @@
 {
-  "name": "localmesh",
+  "name": "meshlink",
   "description": "Offline LAN communication platform for desktop devices",
   "author": "Diksh Jaswal",
   "private": true,
@@ -27,10 +27,11 @@
     "react-dom": "^19.1.0"
   },
   "build": {
-    "appId": "com.localmesh.app",
-    "productName": "LocalMesh",
+    "appId": "com.meshlink.app",
+    "productName": "MeshLink",
     "directories": { "output": "release" },
-    "files": ["dist/**/*", "dist-electron/**/*", "package.json"],
+    "icon": "build/icon.svg",
+    "files": ["dist/**/*", "dist-electron/**/*", "build/**/*", "package.json"],
     "asarUnpack": ["node_modules/better-sqlite3/**/*"],
     "win": { "target": "nsis" },
     "nsis": { "oneClick": false, "allowToChangeInstallationDirectory": true }

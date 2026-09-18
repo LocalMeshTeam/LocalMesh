@@ -1,6 +1,6 @@
-# LocalMesh
+# MeshLink
 
-LocalMesh is a desktop application for private communication over a local Wi-Fi, Ethernet, or compatible mobile-hotspot network. It uses Electron, TypeScript, React, Bun, SQLite, UDP discovery, and encrypted TCP transport. It does not require a cloud server or user account.
+MeshLink is a desktop application for private communication over a local Wi-Fi, Ethernet, or compatible mobile-hotspot network. It uses Electron, TypeScript, React, Bun, SQLite, UDP discovery, and encrypted TCP transport. It does not require a cloud server or user account.
 
 ## Current status
 
@@ -8,19 +8,19 @@ The Windows desktop application, chat UI, peer discovery, encrypted messaging, f
 
 ## User installation (Windows)
 
-Download the latest Windows installer from the **Assets** section of a GitHub Release:
+Download the latest MeshLink Windows installer from the **Assets** section of a GitHub Release:
 
 https://github.com/LocalMeshTeam/LocalMesh/releases
 
 On each Windows computer:
 
-1. Download and run `LocalMesh Setup <version>.exe`.
-2. Allow LocalMesh through Windows Firewall when Windows asks. Choose **Private networks**.
-3. Open LocalMesh on both computers and connect them to the same Wi-Fi, Ethernet network, or compatible mobile hotspot.
+1. Download and run `MeshLink Setup <version>.exe`.
+2. Allow MeshLink through Windows Firewall when Windows asks. Choose **Private networks**.
+3. Open MeshLink on both computers and connect them to the same Wi-Fi, Ethernet network, or compatible mobile hotspot.
 4. Wait for the other computer to appear under **Nearby devices**. If it does not appear, click **Rescan devices**.
 5. Click **Trust**, open **Chat**, and send messages or files.
 
-The installer includes the application and its runtime dependencies. Users do not need Bun, Node.js, the source code, or a separate database installation. LocalMesh stores its database and security identity in each user's Windows application-data folder.
+The installer includes the application and its runtime dependencies. Users do not need Bun, Node.js, the source code, or a separate database installation. MeshLink stores its database and security identity in each user's Windows application-data folder.
 
 Received files can be opened locally or downloaded to a folder chosen by the receiver. File transfer itself requires both devices to be online on the same LAN; internet access is not required.
 
@@ -106,7 +106,7 @@ git tag v0.1.2
 git push origin v0.1.2
 ```
 
-The release job builds `LocalMesh Setup <version>.exe`, uploads the artifact, and attaches it to a GitHub Release. Installers are generated outputs and are not committed to Git.
+The release job builds `MeshLink Setup <version>.exe`, uploads the artifact, and attaches it to a GitHub Release. Installers are generated outputs and are not committed to Git.
 
 ## Data and networking
 

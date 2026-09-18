@@ -1,4 +1,4 @@
-# LocalMesh Backend Testing
+# MeshLink Backend Testing
 
 ## Automated tests
 
@@ -18,15 +18,15 @@ This verifies peer discovery, messaging, and file transfer using the desktop fro
 
 - Two Windows computers on the same Wi-Fi or Ethernet LAN.
 - Bun installed on both computers.
-- The same LocalMesh code on both computers.
-- Windows Firewall permission for LocalMesh on the Private network.
+- The same MeshLink code on both computers.
+- Windows Firewall permission for MeshLink on the Private network.
 
 ### Start both devices
 
 On each computer:
 
 ```powershell
-cd C:\path\to\LocalMesh
+cd C:\path\to\MeshLink
 bun install
 bun run dev
 ```
@@ -45,14 +45,14 @@ The discovery multicast address is `239.255.42.99`.
 Run these commands as Administrator if required:
 
 ```powershell
-New-NetFirewallRule -DisplayName "LocalMesh Discovery UDP" -Direction Inbound -Protocol UDP -LocalPort 45454 -Profile Private -Action Allow
-New-NetFirewallRule -DisplayName "LocalMesh Transport TCP" -Direction Inbound -Protocol TCP -LocalPort 45455 -Profile Private -Action Allow
+New-NetFirewallRule -DisplayName "MeshLink Discovery UDP" -Direction Inbound -Protocol UDP -LocalPort 45454 -Profile Private -Action Allow
+New-NetFirewallRule -DisplayName "MeshLink Transport TCP" -Direction Inbound -Protocol TCP -LocalPort 45455 -Profile Private -Action Allow
 ```
 
 ### Expected logs
 
 ```text
-LocalMesh device: COMPUTER-NAME (WINDOWS-USER)
+MeshLink device: COMPUTER-NAME (WINDOWS-USER)
 Local IPv4 addresses: 192.168.x.x
 LAN discovery listening on 239.255.42.99:45454
 LAN transport listening on port 45455
@@ -61,7 +61,7 @@ LAN transport listening on port 45455
 When the other computer is found:
 
 ```text
-Discovered LocalMesh peer <display name> at <ip address>
+Discovered MeshLink peer <display name> at <ip address>
 ```
 
 The current frontend exposes peer discovery, trust controls, conversations, messaging, and file transfer. Verify each action using the checklist below.

@@ -30,7 +30,7 @@ jobs:
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
         with:
-          name: LocalMesh-Windows
+          name: MeshLink-Windows
           path: release/*.exe
 
       - name: Create GitHub release

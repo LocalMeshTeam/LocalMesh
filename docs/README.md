@@ -1,6 +1,6 @@
-# LocalMesh Learning Guide
+# MeshLink Learning Guide
 
-LocalMesh is a Windows desktop application built with React, TypeScript, Electron, Bun, SQLite, and Node networking APIs.
+MeshLink is a Windows desktop application built with React, TypeScript, Electron, Bun, SQLite, and Node networking APIs.
 
 ## What to learn
 
