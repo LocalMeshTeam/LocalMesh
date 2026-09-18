@@ -112,7 +112,7 @@ export class PeerDiscovery {
 
   private sendAnnouncement(message: Buffer, address: string): void {
     this.socket.send(message, DISCOVERY_PORT, address, (error) => {
-      if (error) console.error(`Failed to announce LocalMesh peer to ${address}:`, error);
+      if (error) console.error(`Failed to announce MeshLink peer to ${address}:`, error);
     });
   }
 
@@ -141,7 +141,7 @@ export class PeerDiscovery {
     const isNewPeer = !this.peers.has(peer.device_id);
     this.peers.set(peer.device_id, peer);
     this.onPeerDiscovered?.(peer);
-    if (isNewPeer) console.log(`Discovered LocalMesh peer ${peer.display_name} at ${peer.address}`);
+    if (isNewPeer) console.log(`Discovered MeshLink peer ${peer.display_name} at ${peer.address}`);
   }
 
   private removeStalePeers(): void {
@@ -149,7 +149,7 @@ export class PeerDiscovery {
     for (const [deviceId, peer] of this.peers) {
       if (Date.parse(peer.last_seen) < cutoff) {
         this.peers.delete(deviceId);
-        console.log(`LocalMesh peer went offline: ${peer.display_name}`);
+        console.log(`MeshLink peer went offline: ${peer.display_name}`);
       }
     }
   }
