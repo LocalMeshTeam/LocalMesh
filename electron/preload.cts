@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("localmesh", {
   deleteMessage: (messageId: string) => ipcRenderer.invoke("delete-message", messageId),
   deleteFile: (transferId: string) => ipcRenderer.invoke("delete-file", transferId),
   clearConversation: (conversationId: string) => ipcRenderer.invoke("clear-conversation", conversationId),
+  deleteConversation: (conversationId: string) => ipcRenderer.invoke("delete-conversation", conversationId),
   createMessage: (conversationId: string, content: string) => ipcRenderer.invoke("create-message", conversationId, content),
   chooseAndSendFile: (conversationId: string) => ipcRenderer.invoke("choose-and-send-file", conversationId),
   cancelFileTransfer: (transferId: string) => ipcRenderer.invoke("cancel-file-transfer", transferId),

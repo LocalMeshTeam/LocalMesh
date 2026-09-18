@@ -235,6 +235,13 @@ export function clearConversationFiles(database: SQLiteDatabase, conversationId:
   return files.map((file) => file.transfer_id);
 }
 
+export function deleteConversation(database: SQLiteDatabase, conversationId: string): string[] {
+  conversationId = requiredText(conversationId, "conversationId", 255);
+  const files = database.prepare("SELECT transfer_id FROM file_messages WHERE conversation_id = ?").all(conversationId) as Array<{ transfer_id: string }>;
+  database.prepare("DELETE FROM conversations WHERE conversation_id = ?").run(conversationId);
+  return files.map((file) => file.transfer_id);
+}
+
 export function saveReceivedMessage(database: SQLiteDatabase, message: Message): Message {
   const conversation = database.prepare("SELECT conversation_id FROM conversations WHERE conversation_id = ?").get(message.conversation_id) as { conversation_id: string } | undefined;
   if (!conversation) throw new Error("Conversation not found for received message");

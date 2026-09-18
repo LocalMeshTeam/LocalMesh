@@ -2,7 +2,7 @@ import { app, BrowserWindow, dialog, ipcMain, shell } from "electron";
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { clearConversationFiles, clearConversationMessages, createConversation, createMessage, deleteFileMessage, deleteMessage, ensureConversation, listConversations, listFileMessages, listMessages, loadOrCreateIdentity, openDatabase, saveFileMessage, saveKnownPeer, saveReceivedMessage, updateMessageStatus, type FileMessage } from "./database.js";
+import { clearConversationFiles, clearConversationMessages, createConversation, createMessage, deleteConversation, deleteFileMessage, deleteMessage, ensureConversation, listConversations, listFileMessages, listMessages, loadOrCreateIdentity, openDatabase, saveFileMessage, saveKnownPeer, saveReceivedMessage, updateMessageStatus, type FileMessage } from "./database.js";
 import { DISCOVERY_PORT, getLocalAddresses, MULTICAST_ADDRESS, PeerDiscovery } from "./discovery.js";
 import { NetworkTransport, TRANSPORT_PORT } from "./transport.js";
 import { SecureIdentity } from "./security.js";
@@ -111,6 +111,7 @@ app.whenReady().then(() => {
     ipcMain.handle("delete-message", (_event, messageId: string) => deleteMessage(database, messageId));
     ipcMain.handle("delete-file", (_event, transferId: string) => { fileStorage.remove(transferId); return deleteFileMessage(database, transferId); });
     ipcMain.handle("clear-conversation", (_event, conversationId: string) => { const transferIds = clearConversationFiles(database, conversationId); for (const transferId of transferIds) fileStorage.remove(transferId); return clearConversationMessages(database, conversationId); });
+    ipcMain.handle("delete-conversation", (_event, conversationId: string) => { const transferIds = deleteConversation(database, conversationId); for (const transferId of transferIds) fileStorage.remove(transferId); return true; });
     ipcMain.handle("choose-and-send-file", async (_event, conversationId: string) => {
       const conversation = listConversations(database).find((item) => item.conversation_id === conversationId);
       if (!conversation) throw new Error("Conversation not found");

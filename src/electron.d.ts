@@ -41,6 +41,7 @@ interface Window {
     deleteMessage(messageId: string): Promise<boolean>;
     deleteFile(transferId: string): Promise<boolean>;
     clearConversation(conversationId: string): Promise<number>;
+    deleteConversation(conversationId: string): Promise<boolean>;
     createMessage(conversationId: string, content: string): Promise<Message>;
     chooseAndSendFile(conversationId: string): Promise<unknown>;
     cancelFileTransfer(transferId: string): Promise<boolean>;
