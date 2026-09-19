@@ -126,6 +126,7 @@ app.whenReady().then(() => {
       outgoingTransfers.set(transferId, controller);
       const offer = createFileOffer(identity, secureIdentity, transferId, peer.device_id, path.basename(selection.filePaths[0]), content);
       fileStorage.createTransfer(transferId, offer.file_name, offer.size, offer.checksum);
+      fileStorage.saveComplete(transferId, content);
       notifyRenderer("file-progress", { transfer_id: transferId, file_name: offer.file_name, transferred: 0, total: offer.size, status: "sending", conversation_id: conversation.conversation_id, sender_id: identity.device_id, receiver_id: peer.device_id } satisfies FileProgress);
       await lanTransport.sendFilePacket(peer, offer);
       const chunkSize = 64 * 1024;

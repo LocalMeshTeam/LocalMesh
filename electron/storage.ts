@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeSync } from "node:fs";
+import { closeSync, copyFileSync, existsSync, mkdirSync, openSync, readFileSync, statSync, unlinkSync, writeFileSync, writeSync } from "node:fs";
 import path from "node:path";
 
 const MAX_FILE_SIZE = 1024 * 1024 * 1024;
@@ -42,6 +42,14 @@ export class FileStorage {
     const checksum = createHash("sha256").update(readFileSync(this.dataPath(fileId))).digest("hex");
     if (checksum !== metadata.checksum) throw new Error("File checksum does not match");
     return metadata;
+  }
+
+  public saveComplete(fileId: string, content: Uint8Array): void {
+    const metadata = this.readMetadata(fileId);
+    if (content.byteLength !== metadata.size) throw new Error("File size does not match transfer metadata");
+    const checksum = createHash("sha256").update(content).digest("hex");
+    if (checksum !== metadata.checksum) throw new Error("File checksum does not match");
+    writeFileSync(this.dataPath(fileId), content);
   }
 
   public read(fileId: string): Buffer {

@@ -22,7 +22,7 @@ On each Windows computer:
 
 The installer includes the application and its runtime dependencies. Users do not need Bun, Node.js, the source code, or a separate database installation. MeshLink stores its database and security identity in each user's Windows application-data folder.
 
-Received files can be opened locally or downloaded to a folder chosen by the receiver. File transfer itself requires both devices to be online on the same LAN; internet access is not required.
+Files can be opened locally on both devices after transfer. The receiver can also download a copy to a chosen folder. File transfer itself requires both devices to be online on the same LAN; internet access is not required.
 
 If devices cannot see each other, the network must allow multicast discovery and local device-to-device traffic. The app uses UDP port `45454` for discovery and TCP port `45455` for messages and files. See [`docs/USER_GUIDE.md`](docs/USER_GUIDE.md) for firewall troubleshooting.
 

@@ -41,7 +41,7 @@ Do not expose these ports to the Public network unless you understand the securi
 
 ## Received files
 
-After a file finishes transferring, the receiver can use **Open** to open the locally stored copy or **Download** to choose a folder and save a copy with the original filename and extension. The download dialog works without internet because it copies the file from MeshLink's local storage. The sender can go offline after the transfer has completed.
+After a file finishes transferring, the sender and receiver can use **Open** to open their local copy. The receiver also gets **Download** to choose a folder and save a copy with the original filename and extension. The download dialog works without internet because it copies the file from MeshLink's local storage. The sender can go offline after the transfer has completed.
 
 ## Data and security
 
