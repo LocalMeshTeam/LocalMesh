@@ -17,6 +17,7 @@ function Icon({ name }: { name: IconName }) {
 function friendlyError(error: string): string {
   const clean = error.replace(/^Error invoking remote method '[^']+': Error: /, "").replace(/^Error: /, "");
   if (clean.includes("Peer is offline")) return "This device is offline. Ask them to open MeshLink and connect to the same network.";
+  if (clean.includes("Message could not be delivered")) return "Message could not be delivered. Check that the other device is online and on the same network.";
   if (clean.includes("Peer has not been discovered")) return "That device is no longer available. Click Rescan devices and try again.";
   if (clean.includes("Conversation not found")) return "This conversation is no longer available. Rescan devices and try again.";
   if (clean.includes("File transfer cancelled")) return "The file transfer was cancelled.";
@@ -93,10 +94,13 @@ function App() {
     setSending(true);
     try {
       const message = await window.localmesh.createMessage(selected.conversation_id, draft);
+      if (message.status === "failed") throw new Error("Message could not be delivered. Check that the other device is online and on the same network.");
       setMessages((current) => Array.from(new Map([...current, message].map((item) => [item.message_id, item])).values()));
       setDraft(""); setError("");
+    } catch (reason) {
+      const message = reason instanceof Error ? reason.message : String(reason);
+      setError(message.replace(/^Error invoking remote method '[^']+': Error: /, ""));
     }
-    catch (reason) { setError(String(reason)); }
     finally { setSending(false); }
   };
 

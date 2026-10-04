@@ -167,7 +167,10 @@ app.whenReady().then(() => {
       const identity = loadOrCreateIdentity(database);
       const message = createMessage(database, conversationId, identity.device_id, content);
       const peer = peerDiscovery.listPeers().find((candidate) => candidate.device_id === message.receiver_id);
-      if (!peer) return message;
+      if (!peer) {
+        updateMessageStatus(database, message.message_id, "failed");
+        throw new Error("Peer is offline");
+      }
       return lanTransport.sendMessage(peer, message)
         .then(() => {
           updateMessageStatus(database, message.message_id, "sent");
@@ -176,7 +179,7 @@ app.whenReady().then(() => {
       .catch((error: unknown) => {
           console.error("Failed to send message:", error);
           updateMessageStatus(database, message.message_id, "failed");
-          return { ...message, status: "failed" as const };
+          throw new Error("Message could not be delivered. Check that the other device is online and connected to the same network.");
         });
     });
     ipcMain.handle("list-trusted-peers", () => trustedPeers.list());
