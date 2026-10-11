@@ -232,7 +232,8 @@ export class NetworkTransport {
       if (pending) {
         clearTimeout(pending.timer);
         this.pendingAcks.delete(packet.message_id);
-        pending.resolve();
+        if (packet.accepted === false) pending.reject(new Error(packet.error || "Peer rejected the message"));
+        else pending.resolve();
       }
       this.onAck(packet.message_id);
       return;
@@ -250,25 +251,37 @@ export class NetworkTransport {
       this.write(socket, { type: "file-ack", version: PROTOCOL_VERSION, transfer_id: packet.transfer_id, offset: packet.type === "file-chunk" ? packet.offset : -1, accepted });
       return;
     }
-    if (packet.sender_id !== peer.device_id || packet.receiver_id !== this.identity.device_id) return;
+    if (packet.sender_id !== peer.device_id || packet.receiver_id !== this.identity.device_id) {
+      console.error(`Rejected message ${packet.message_id}: sender or receiver mismatch`);
+      this.write(socket, this.messageAck(packet.message_id, false, "sender or receiver mismatch"));
+      return;
+    }
     const timestamp = Date.parse(packet.timestamp);
     if (!Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > MAX_MESSAGE_CLOCK_SKEW_MS) {
       console.error(`Rejected stale or future message ${packet.message_id}`);
+      this.write(socket, this.messageAck(packet.message_id, false, "message timestamp is outside the allowed clock skew"));
       return;
     }
     const { signature: _signature, ...unsignedPacket } = packet;
     if (!SecureIdentity.verify(messageSigningData(unsignedPacket), packet.signature, peer.signing_public_key)) {
       console.error(`Rejected unauthenticated message ${packet.message_id}`);
+      this.write(socket, this.messageAck(packet.message_id, false, "message signature verification failed"));
       return;
     }
     try {
       const content = this.secureIdentity.decrypt(packet, peer.exchange_public_key);
       this.onMessage({ message_id: packet.message_id, conversation_id: packet.conversation_id, sender_id: packet.sender_id, receiver_id: packet.receiver_id, content, timestamp: packet.timestamp, status: "delivered" });
     } catch (error) {
-      console.error(`Failed to decrypt message ${packet.message_id}:`, error);
+      console.error(`Failed to process message ${packet.message_id}:`, error);
+      const detail = error instanceof Error ? error.message : String(error);
+      this.write(socket, this.messageAck(packet.message_id, false, `receiver processing failed: ${detail}`));
       return;
     }
-    this.write(socket, { type: "ack", version: PROTOCOL_VERSION, message_id: packet.message_id });
+    this.write(socket, this.messageAck(packet.message_id, true));
+  }
+
+  private messageAck(messageId: string, accepted: boolean, error?: string): NetworkPacket {
+    return { type: "ack", version: PROTOCOL_VERSION, message_id: messageId, accepted, ...(error ? { error } : {}) };
   }
 
   private write(socket: Socket, packet: NetworkPacket): void {

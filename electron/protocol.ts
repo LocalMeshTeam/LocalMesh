@@ -29,6 +29,8 @@ export type AckPacket = {
   type: "ack";
   version: number;
   message_id: string;
+  accepted?: boolean;
+  error?: string;
 };
 
 export type FileOfferPacket = {
@@ -97,7 +99,7 @@ export function decodePacket(line: string): NetworkPacket | undefined {
     if (value.version !== PROTOCOL_VERSION || typeof value.type !== "string") return undefined;
     if (value.type === "hello" && typeof value.device_id === "string" && typeof value.device_name === "string" && typeof value.display_name === "string" && typeof value.signing_public_key === "string" && typeof value.exchange_public_key === "string" && typeof value.signature === "string") return value as HelloPacket;
     if (value.type === "message" && typeof value.message_id === "string" && typeof value.conversation_id === "string" && typeof value.sender_id === "string" && typeof value.receiver_id === "string" && typeof value.timestamp === "string" && typeof value.ciphertext === "string" && typeof value.iv === "string" && typeof value.auth_tag === "string" && typeof value.signature === "string") return value as MessagePacket;
-    if (value.type === "ack" && typeof value.message_id === "string") return value as AckPacket;
+    if (value.type === "ack" && typeof value.message_id === "string" && (value.accepted === undefined || typeof value.accepted === "boolean") && (value.error === undefined || typeof value.error === "string")) return value as AckPacket;
     if (value.type === "file-offer" && typeof value.transfer_id === "string" && typeof value.sender_id === "string" && typeof value.receiver_id === "string" && typeof value.file_name === "string" && Number.isSafeInteger(value.size) && (value.size as number) >= 0 && typeof value.checksum === "string" && typeof value.timestamp === "string" && typeof value.signature === "string") return value as FileOfferPacket;
     if (value.type === "file-chunk" && typeof value.transfer_id === "string" && Number.isSafeInteger(value.offset) && (value.offset as number) >= 0 && typeof value.ciphertext === "string" && typeof value.iv === "string" && typeof value.auth_tag === "string" && typeof value.signature === "string") return value as FileChunkPacket;
     if (value.type === "file-complete" && typeof value.transfer_id === "string" && typeof value.checksum === "string" && typeof value.signature === "string") return value as FileCompletePacket;

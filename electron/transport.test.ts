@@ -119,3 +119,30 @@ test("transport handles simultaneous bidirectional bursts", async () => {
     rmSync(secondDirectory, { recursive: true, force: true });
   }
 });
+
+test("transport reports a receiver rejection instead of waiting for an ACK timeout", async () => {
+  const firstDirectory = mkdtempSync(path.join(tmpdir(), "localmesh-transport-reject-a-"));
+  const secondDirectory = mkdtempSync(path.join(tmpdir(), "localmesh-transport-reject-b-"));
+  const firstIdentity: DeviceIdentity = { device_id: "reject-a", device_name: "PC-A", display_name: "A", created_at: new Date().toISOString() };
+  const secondIdentity: DeviceIdentity = { device_id: "reject-b", device_name: "PC-B", display_name: "B", created_at: new Date().toISOString() };
+  const firstSecurity = new SecureIdentity(firstDirectory);
+  const secondSecurity = new SecureIdentity(secondDirectory);
+  const firstTransport = new NetworkTransport(firstIdentity, firstSecurity, () => undefined, () => undefined, 45530, "127.0.0.1");
+  const secondTransport = new NetworkTransport(secondIdentity, secondSecurity, () => { throw new Error("database unavailable"); }, () => undefined, 45531, "127.0.0.1");
+  try {
+    secondTransport.start();
+    firstTransport.start();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    await assert.rejects(
+      firstTransport.sendMessage({ device_id: secondIdentity.device_id, address: "127.0.0.1", transport_port: 45531, signing_public_key: secondSecurity.signingPublicKey, exchange_public_key: secondSecurity.exchangePublicKey }, {
+        message_id: "message-rejected", conversation_id: "conversation-rejected", sender_id: firstIdentity.device_id, receiver_id: secondIdentity.device_id, content: "test", timestamp: new Date().toISOString(), status: "pending",
+      }),
+      /receiver processing failed: database unavailable/,
+    );
+  } finally {
+    firstTransport.stop();
+    secondTransport.stop();
+    rmSync(firstDirectory, { recursive: true, force: true });
+    rmSync(secondDirectory, { recursive: true, force: true });
+  }
+});
