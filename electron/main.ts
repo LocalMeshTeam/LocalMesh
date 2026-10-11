@@ -179,7 +179,8 @@ app.whenReady().then(() => {
       .catch((error: unknown) => {
           console.error("Failed to send message:", error);
           updateMessageStatus(database, message.message_id, "failed");
-          throw new Error("Message could not be delivered. Check that the other device is online and connected to the same network.");
+          const detail = error instanceof Error ? error.message : String(error);
+          throw new Error(`Message could not be delivered: ${detail}. Check that Windows Firewall allows TCP port ${TRANSPORT_PORT} on Private networks.`);
         });
     });
     ipcMain.handle("list-trusted-peers", () => trustedPeers.list());

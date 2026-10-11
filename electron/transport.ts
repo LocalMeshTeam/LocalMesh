@@ -6,6 +6,7 @@ import type { TrustedPeerStore } from "./trust.js";
 
 export const TRANSPORT_PORT = 45455;
 const ACK_TIMEOUT_MS = 5_000;
+const CONNECT_TIMEOUT_MS = 2_500;
 const MAX_SEND_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 250;
 const MAX_FILE_SEND_ATTEMPTS = 3;
@@ -109,13 +110,20 @@ export class NetworkTransport {
       }
       const socket = net.createConnection({ host: peer.address, port: peer.transport_port });
       let connected = false;
+      socket.setTimeout(CONNECT_TIMEOUT_MS);
       socket.once("connect", () => {
         connected = true;
+        socket.setTimeout(0);
         this.attachSocket(socket);
         this.socketPeers.set(socket, { device_id: peer.device_id, device_name: "", display_name: "", signing_public_key: peer.signing_public_key, exchange_public_key: peer.exchange_public_key });
         this.write(socket, this.helloPacket());
         this.waitForAck(message.message_id, resolve, reject, socket);
         this.write(socket, this.messagePacket(message, peer.exchange_public_key));
+      });
+      socket.once("timeout", () => {
+        const error = new Error(`Timed out connecting to peer ${peer.address}:${peer.transport_port}`);
+        if (!connected) socket.destroy(error);
+        else this.rejectPendingAck(message.message_id, error);
       });
       socket.once("error", (error) => {
         if (!connected) reject(error);

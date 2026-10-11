@@ -17,7 +17,7 @@ function Icon({ name }: { name: IconName }) {
 function friendlyError(error: string): string {
   const clean = error.replace(/^Error invoking remote method '[^']+': Error: /, "").replace(/^Error: /, "");
   if (clean.includes("Peer is offline")) return "This device is offline. Ask them to open MeshLink and connect to the same network.";
-  if (clean.includes("Message could not be delivered")) return "Message could not be delivered. Check that the other device is online and on the same network.";
+  if (clean.includes("Message could not be delivered")) return clean;
   if (clean.includes("Peer has not been discovered")) return "That device is no longer available. Click Rescan devices and try again.";
   if (clean.includes("Conversation not found")) return "This conversation is no longer available. Rescan devices and try again.";
   if (clean.includes("File transfer cancelled")) return "The file transfer was cancelled.";
@@ -212,7 +212,7 @@ function App() {
 
   if (loading || !identity) return <main className="shell"><h1>MeshLink</h1><p>{error || "Loading device…"}</p></main>;
   return <main className="shell">
-    <header className="header"><div className="brand-lockup"><img className="brand-icon" src={meshLinkIcon} alt="MeshLink" /><div><span className="eyebrow">LOCAL NETWORK // SECURE CHANNEL</span><h1>MeshLink</h1><p>Offline LAN Communication</p></div></div><div className="identity"><div className="identity-status"><span className="online-dot" />SYSTEM ONLINE</div><strong>{identity.device_name}</strong><span>{network?.addresses.join(", ") || "No LAN address"}</span><details className="network-details"><summary>Network details</summary><div><span>Discovery UDP</span><b>{network?.discovery_port ?? "—"}</b></div><div><span>Transport TCP</span><b>{network?.transport_port ?? "—"}</b></div></details></div></header>
+    <header className="header"><div className="brand-lockup"><img className="brand-icon" src={meshLinkIcon} alt="MeshLink" /><div><span className="eyebrow">LOCAL NETWORK // SECURE CHANNEL</span><h1>MeshLink</h1><p>Offline LAN Communication</p></div></div><div className="identity"><div className="identity-status"><span className="online-dot" />SYSTEM ONLINE</div><strong>{identity.device_name}</strong><span>LAN ready · secure peer channel</span><details className="network-details"><summary>Network details</summary><div><span>Discovery UDP</span><b>{network?.discovery_port ?? "—"}</b></div><div><span>Transport TCP</span><b>{network?.transport_port ?? "—"}</b></div></details></div></header>
     {error && <div className="error-toast" role="alert"><span>{friendlyError(error)}</span><button type="button" className="toast-close" aria-label="Dismiss error" onClick={() => setError("")}>×</button></div>}
     <div className="toolbar"><div><strong>{peers.length}</strong><span> nearby {peers.length === 1 ? "device" : "devices"}</span><span className="toolbar-separator">·</span><strong>{conversations.length}</strong><span> conversations</span></div><div className="toolbar-actions"><button className="copy-button" onClick={copyDeviceId} title="Copy this computer's unique MeshLink ID">{copied ? "Copied" : "Copy device ID"}</button><button className="icon-button" onClick={refreshNow} disabled={refreshing} title="Scan the LAN and reload conversations">{refreshing ? "Scanning…" : "Rescan devices"}</button></div></div>
     <div className="layout">
