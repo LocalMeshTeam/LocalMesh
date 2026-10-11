@@ -14,6 +14,8 @@ test("transport delivers an encrypted message and acknowledgement", async () => 
   const secondIdentity: DeviceIdentity = { device_id: "device-b", device_name: "PC-B", display_name: "B", created_at: new Date().toISOString() };
   const firstSecurity = new SecureIdentity(firstDirectory);
   const secondSecurity = new SecureIdentity(secondDirectory);
+  const staleDirectory = mkdtempSync(path.join(tmpdir(), "localmesh-transport-stale-"));
+  const staleSecurity = new SecureIdentity(staleDirectory);
   let resolveReceived!: (message: Message) => void;
   const received = new Promise<Message>((resolve) => { resolveReceived = resolve; });
   const secondTransport = new NetworkTransport(secondIdentity, secondSecurity, resolveReceived, () => undefined, 45501, "127.0.0.1");
@@ -23,7 +25,7 @@ test("transport delivers an encrypted message and acknowledgement", async () => 
     firstTransport.start();
     await new Promise((resolve) => setTimeout(resolve, 50));
     const message: Message = { message_id: "message-1", conversation_id: "conversation-1", sender_id: firstIdentity.device_id, receiver_id: secondIdentity.device_id, content: "encrypted hello", timestamp: new Date().toISOString(), status: "pending" };
-    const delivery = firstTransport.sendMessage({ device_id: secondIdentity.device_id, address: "127.0.0.1", transport_port: 45501, signing_public_key: secondSecurity.signingPublicKey, exchange_public_key: secondSecurity.exchangePublicKey }, message);
+    const delivery = firstTransport.sendMessage({ device_id: secondIdentity.device_id, address: "127.0.0.1", transport_port: 45501, signing_public_key: secondSecurity.signingPublicKey, exchange_public_key: staleSecurity.exchangePublicKey }, message);
     const [delivered] = await Promise.all([received, delivery]);
     assert.equal(delivered.content, message.content);
     assert.equal(delivered.message_id, message.message_id);
@@ -32,6 +34,7 @@ test("transport delivers an encrypted message and acknowledgement", async () => 
     secondTransport.stop();
     rmSync(firstDirectory, { recursive: true, force: true });
     rmSync(secondDirectory, { recursive: true, force: true });
+    rmSync(staleDirectory, { recursive: true, force: true });
   }
 });
 

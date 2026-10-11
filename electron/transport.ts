@@ -26,6 +26,7 @@ export class NetworkTransport {
   private readonly socketPeers = new Map<Socket, { device_id: string; device_name: string; display_name: string; signing_public_key: string; exchange_public_key: string }>();
   private readonly pinnedSigningKeys = new Map<string, string>();
   private readonly pendingAcks = new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: NodeJS.Timeout; socket: Socket }>();
+  private readonly pendingHelloMessages = new Map<Socket, { message: Message }>();
   private readonly pendingFileAcks = new Map<string, { resolve: () => void; reject: (error: Error) => void; timer: NodeJS.Timeout }>();
   private started = false;
 
@@ -118,7 +119,9 @@ export class NetworkTransport {
         this.socketPeers.set(socket, { device_id: peer.device_id, device_name: "", display_name: "", signing_public_key: peer.signing_public_key, exchange_public_key: peer.exchange_public_key });
         this.write(socket, this.helloPacket());
         this.waitForAck(message.message_id, resolve, reject, socket);
-        this.write(socket, this.messagePacket(message, peer.exchange_public_key));
+        // Wait for the receiver's hello before encrypting. Discovery can carry
+        // a stale exchange key after a peer restarts or rotates its identity.
+        this.pendingHelloMessages.set(socket, { message });
       });
       socket.once("timeout", () => {
         const error = new Error(`Timed out connecting to peer ${peer.address}:${peer.transport_port}`);
@@ -168,6 +171,7 @@ export class NetworkTransport {
     socket.on("close", () => {
       this.buffers.delete(socket);
       this.socketPeers.delete(socket);
+      this.pendingHelloMessages.delete(socket);
       this.activeSockets.delete(socket);
       for (const [deviceId, peerSocket] of this.outboundSockets) if (peerSocket === socket) this.outboundSockets.delete(deviceId);
       for (const [deviceId, peerSocket] of this.inboundSockets) if (peerSocket === socket) this.inboundSockets.delete(deviceId);
@@ -210,10 +214,17 @@ export class NetworkTransport {
         socket.destroy();
         return;
       }
+      const hadPeerIdentity = this.socketPeers.has(socket);
       this.pinnedSigningKeys.set(packet.device_id, packet.signing_public_key);
       this.socketPeers.set(socket, { device_id: packet.device_id, device_name: packet.device_name, display_name: packet.display_name, signing_public_key: packet.signing_public_key, exchange_public_key: packet.exchange_public_key });
       this.inboundSockets.set(packet.device_id, socket);
       this.onPeerIdentity?.({ device_id: packet.device_id, device_name: packet.device_name, display_name: packet.display_name, last_seen: new Date().toISOString() });
+      if (!hadPeerIdentity) this.write(socket, this.helloPacket());
+      const pending = this.pendingHelloMessages.get(socket);
+      if (pending) {
+        this.pendingHelloMessages.delete(socket);
+        this.write(socket, this.messagePacket(pending.message, packet.exchange_public_key));
+      }
       return;
     }
     if (packet.type === "ack") {
