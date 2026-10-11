@@ -24,7 +24,7 @@ type NetworkInfo = {
 };
 
 type Conversation = { conversation_id: string; peer_id: string; peer_name?: string; peer_display_name?: string; created_at: string; updated_at: string };
-type Message = { message_id: string; conversation_id: string; sender_id: string; receiver_id: string; content: string; timestamp: string; status: string };
+type Message = { message_id: string; conversation_id: string; sender_id: string; receiver_id: string; content: string; timestamp: string; local_timestamp?: string; status: string };
 type FileMessage = { transfer_id: string; conversation_id: string; sender_id: string; receiver_id: string; file_name: string; timestamp: string; status: "sent" | "received" };
 type TrustedPeer = { device_id: string; signing_public_key: string; fingerprint: string; trusted_at: string; revoked_at?: string };
 

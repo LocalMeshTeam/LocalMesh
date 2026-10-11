@@ -42,6 +42,7 @@ export type Message = {
   receiver_id: string;
   content: string;
   timestamp: string;
+  local_timestamp?: string;
   status: string;
 };
 
@@ -74,7 +75,7 @@ export function openDatabase(userDataPath: string): SQLiteDatabase {
     CREATE TABLE IF NOT EXISTS messages (
       message_id TEXT PRIMARY KEY NOT NULL, conversation_id TEXT NOT NULL,
       sender_id TEXT NOT NULL, receiver_id TEXT NOT NULL, content TEXT NOT NULL,
-      timestamp TEXT NOT NULL, status TEXT NOT NULL,
+      timestamp TEXT NOT NULL, local_timestamp TEXT, status TEXT NOT NULL,
       FOREIGN KEY (conversation_id) REFERENCES conversations(conversation_id) ON DELETE CASCADE
     );
     CREATE INDEX IF NOT EXISTS idx_messages_conversation_id ON messages(conversation_id);
@@ -99,6 +100,10 @@ export function openDatabase(userDataPath: string): SQLiteDatabase {
   if (!conversationColumns.some((column) => column.name === "peer_display_name")) database.exec("ALTER TABLE conversations ADD COLUMN peer_display_name TEXT");
   database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (4, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))").run();
   database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (5, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))").run();
+  const messageColumns = database.prepare("PRAGMA table_info(messages)").all() as Array<{ name: string }>;
+  if (!messageColumns.some((column) => column.name === "local_timestamp")) database.exec("ALTER TABLE messages ADD COLUMN local_timestamp TEXT");
+  database.exec("UPDATE messages SET local_timestamp = COALESCE(local_timestamp, timestamp) WHERE local_timestamp IS NULL");
+  database.prepare("INSERT OR IGNORE INTO schema_migrations (version, applied_at) VALUES (6, strftime('%Y-%m-%dT%H:%M:%fZ', 'now'))").run();
   return database;
 }
 
@@ -175,7 +180,7 @@ export function listMessages(database: SQLiteDatabase, conversationId: string): 
   // Order by SQLite insertion order, not remote wall-clock timestamps. Two
   // PCs can have different clocks, which otherwise makes messages jump up or
   // down when a delayed message arrives.
-  return database.prepare("SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, status FROM messages WHERE conversation_id = ? ORDER BY rowid ASC")
+  return database.prepare("SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, COALESCE(local_timestamp, timestamp) AS local_timestamp, status FROM messages WHERE conversation_id = ? ORDER BY rowid ASC")
     .all(conversationId) as Message[];
 }
 
@@ -185,12 +190,13 @@ export function createMessage(database: SQLiteDatabase, conversationId: string, 
   content = requiredText(content, "content", MAX_MESSAGE_LENGTH);
   const conversation = database.prepare("SELECT peer_id FROM conversations WHERE conversation_id = ?").get(conversationId) as { peer_id: string } | undefined;
   if (!conversation) throw new Error("Conversation not found");
+  const localTimestamp = new Date().toISOString();
   const message: Message = {
     message_id: crypto.randomUUID(), conversation_id: conversationId, sender_id: senderId,
-    receiver_id: conversation.peer_id, content, timestamp: new Date().toISOString(), status: "pending",
+    receiver_id: conversation.peer_id, content, timestamp: localTimestamp, local_timestamp: localTimestamp, status: "pending",
   };
-  database.prepare("INSERT INTO messages (message_id, conversation_id, sender_id, receiver_id, content, timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(message.message_id, message.conversation_id, message.sender_id, message.receiver_id, message.content, message.timestamp, message.status);
+  database.prepare("INSERT INTO messages (message_id, conversation_id, sender_id, receiver_id, content, timestamp, local_timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(message.message_id, message.conversation_id, message.sender_id, message.receiver_id, message.content, message.timestamp, message.local_timestamp, message.status);
   database.prepare("UPDATE conversations SET updated_at = ? WHERE conversation_id = ?").run(message.timestamp, conversationId);
   return message;
 }
@@ -245,11 +251,11 @@ export function deleteConversation(database: SQLiteDatabase, conversationId: str
 export function saveReceivedMessage(database: SQLiteDatabase, message: Message): Message {
   const conversation = database.prepare("SELECT conversation_id FROM conversations WHERE conversation_id = ?").get(message.conversation_id) as { conversation_id: string } | undefined;
   if (!conversation) throw new Error("Conversation not found for received message");
-  const existing = database.prepare("SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, status FROM messages WHERE message_id = ?").get(message.message_id) as Message | undefined;
+  const existing = database.prepare("SELECT message_id, conversation_id, sender_id, receiver_id, content, timestamp, COALESCE(local_timestamp, timestamp) AS local_timestamp, status FROM messages WHERE message_id = ?").get(message.message_id) as Message | undefined;
   if (existing) return existing;
-  const receivedMessage = { ...message, status: "delivered" } as Message;
-  database.prepare("INSERT INTO messages (message_id, conversation_id, sender_id, receiver_id, content, timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?)")
-    .run(receivedMessage.message_id, receivedMessage.conversation_id, receivedMessage.sender_id, receivedMessage.receiver_id, receivedMessage.content, receivedMessage.timestamp, receivedMessage.status);
+  const receivedMessage = { ...message, local_timestamp: new Date().toISOString(), status: "delivered" } as Message;
+  database.prepare("INSERT INTO messages (message_id, conversation_id, sender_id, receiver_id, content, timestamp, local_timestamp, status) VALUES (?, ?, ?, ?, ?, ?, ?, ?)")
+    .run(receivedMessage.message_id, receivedMessage.conversation_id, receivedMessage.sender_id, receivedMessage.receiver_id, receivedMessage.content, receivedMessage.timestamp, receivedMessage.local_timestamp, receivedMessage.status);
   database.prepare("UPDATE conversations SET updated_at = ? WHERE conversation_id = ?").run(receivedMessage.timestamp, receivedMessage.conversation_id);
   return receivedMessage;
 }
