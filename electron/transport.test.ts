@@ -24,7 +24,7 @@ test("transport delivers an encrypted message and acknowledgement", async () => 
     secondTransport.start();
     firstTransport.start();
     await new Promise((resolve) => setTimeout(resolve, 50));
-    const message: Message = { message_id: "message-1", conversation_id: "conversation-1", sender_id: firstIdentity.device_id, receiver_id: secondIdentity.device_id, content: "encrypted hello", timestamp: new Date().toISOString(), status: "pending" };
+    const message: Message = { message_id: "message-1", conversation_id: "conversation-1", sender_id: firstIdentity.device_id, receiver_id: secondIdentity.device_id, content: "encrypted hello", timestamp: "2020-01-01T00:00:00.000Z", status: "pending" };
     const delivery = firstTransport.sendMessage({ device_id: secondIdentity.device_id, address: "127.0.0.1", transport_port: 45501, signing_public_key: secondSecurity.signingPublicKey, exchange_public_key: staleSecurity.exchangePublicKey }, message);
     const [delivered] = await Promise.all([received, delivery]);
     assert.equal(delivered.content, message.content);

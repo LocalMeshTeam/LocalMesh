@@ -10,7 +10,6 @@ const CONNECT_TIMEOUT_MS = 2_500;
 const MAX_SEND_ATTEMPTS = 3;
 const RETRY_DELAY_MS = 250;
 const MAX_FILE_SEND_ATTEMPTS = 3;
-const MAX_MESSAGE_CLOCK_SKEW_MS = 60_000;
 
 export type PeerAddress = { device_id: string; address: string; transport_port: number; signing_public_key: string; exchange_public_key: string };
 export type ReceivedFilePacket = FileOfferPacket | FileChunkPacket | FileCompletePacket;
@@ -257,9 +256,9 @@ export class NetworkTransport {
       return;
     }
     const timestamp = Date.parse(packet.timestamp);
-    if (!Number.isFinite(timestamp) || Math.abs(Date.now() - timestamp) > MAX_MESSAGE_CLOCK_SKEW_MS) {
-      console.error(`Rejected stale or future message ${packet.message_id}`);
-      this.write(socket, this.messageAck(packet.message_id, false, "message timestamp is outside the allowed clock skew"));
+    if (!Number.isFinite(timestamp)) {
+      console.error(`Rejected message ${packet.message_id}: invalid timestamp`);
+      this.write(socket, this.messageAck(packet.message_id, false, "message timestamp is invalid"));
       return;
     }
     const { signature: _signature, ...unsignedPacket } = packet;
